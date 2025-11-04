@@ -24,4 +24,8 @@ Level Question Pool Structure (question content is fixed; order is randomized):
 - Some safety questions will mix in
 
 ---
+### Tech Stack
+We built "Web3 Phishing Terminator" using React.js, HTML, JavaScript, CSS, Node.js, and PostgreSQL (Supabase) to create a responsive, interactive, and educationally effective simulation that mirrors real-world Web3 threats. Based on our lecture and our intern experience, we chose React.js for its component-driven architecture—ideally adapted to managing dynamic game states like "panic mode," item utilization, and real-time balance updates. Node.js powers the lean backend, making it easy to integrate with a PostgreSQL database to persist and randomly shuffle static question pools by level while keeping deployment easy. The HTML/CSS/JavaScript trio ensures broad accessibility across devices without requiring excessive infrastructure..
+
+---
 # All of above will be redesigned
