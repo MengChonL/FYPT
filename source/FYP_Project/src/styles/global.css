@@ -1,0 +1,66 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+    color: #333;
+    overflow: hidden;
+    height: 100vh;
+  }
+  
+  /* Curved Loop Styles */
+  .curved-loop-jacket {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+  
+  .curved-loop-svg {
+    user-select: none;
+    width: 100%;
+    aspect-ratio: 100 / 12;
+    overflow: visible;
+    display: block;
+    font-size: 6rem;
+    fill: #ffffff;
+    user-select: none;
+    -moz-user-select: none;
+    -webkit-user-select: none;
+    font-weight: 700;
+    text-transform: uppercase;
+    line-height: 1;
+  }
+  
+  /* macOS Interface Styles */
+  .main-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
+    overflow: hidden;
+  }
+  
+  .menu-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 30px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 1000;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  }
+  
+  /* ... (其他 CSS 樣式保持不變，從之前的完整 CSS 中複製) */

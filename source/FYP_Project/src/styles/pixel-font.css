@@ -1,0 +1,171 @@
+/* 像素風格字體 CSS */
+/* 基於 PixelPlurk.css 的像素風格設計 */
+
+/* 像素字體定義 */
+@font-face {
+  font-family: 'PixelFont';
+  src: url('data:font/woff2;base64,') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 像素風格基礎樣式 */
+.pixel-font {
+  font-family: 'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-weight: bold;
+  text-rendering: optimizeSpeed;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
+  text-shadow: 1px 1px 0px #000;
+  letter-spacing: 1px;
+}
+
+/* 像素風格按鈕 */
+.pixel-button {
+  font-family: 'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 0px #000;
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
+}
+
+/* 像素風格標題 */
+.pixel-title {
+  font-family: 'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  text-shadow: 3px 3px 0px #000, 6px 6px 0px #333;
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
+}
+
+/* 像素風格文字 */
+.pixel-text {
+  font-family: 'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-weight: normal;
+  letter-spacing: 1px;
+  text-shadow: 1px 1px 0px #000;
+  image-rendering: pixelated;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
+  font-smooth: never;
+}
+
+/* 像素風格邊框 */
+.pixel-border {
+  border: 3px solid #000;
+  box-shadow: 
+    3px 3px 0px #000,
+    6px 6px 0px #333;
+  image-rendering: pixelated;
+}
+
+/* 像素風格陰影 */
+.pixel-shadow {
+  box-shadow: 
+    4px 4px 0px #000,
+    8px 8px 0px #333;
+}
+
+/* 像素風格按鈕懸停效果 */
+.pixel-button:hover {
+  transform: translate(2px, 2px);
+  box-shadow: 
+    2px 2px 0px #000,
+    4px 4px 0px #333;
+}
+
+/* 像素風格按鈕點擊效果 */
+.pixel-button:active {
+  transform: translate(4px, 4px);
+  box-shadow: 
+    1px 1px 0px #000,
+    2px 2px 0px #333;
+}
+
+/* 像素風格網格背景 */
+.pixel-grid {
+  background-image: 
+    linear-gradient(#000 1px, transparent 1px),
+    linear-gradient(90deg, #000 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-color: #1a1a1a;
+}
+
+/* 像素風格動畫 */
+@keyframes pixel-bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-10px);
+  }
+  60% {
+    transform: translateY(-5px);
+  }
+}
+
+.pixel-bounce {
+  animation: pixel-bounce 2s infinite;
+}
+
+/* 像素風格閃爍 */
+@keyframes pixel-blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+.pixel-blink {
+  animation: pixel-blink 1s infinite;
+}
+
+/* 響應式像素字體 */
+@media (max-width: 768px) {
+  .pixel-font {
+    font-size: 14px;
+    letter-spacing: 0.5px;
+  }
+  
+  .pixel-title {
+    font-size: 24px;
+    letter-spacing: 2px;
+  }
+  
+  .pixel-button {
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pixel-font {
+    font-size: 12px;
+    letter-spacing: 0.3px;
+  }
+  
+  .pixel-title {
+    font-size: 20px;
+    letter-spacing: 1px;
+  }
+  
+  .pixel-button {
+    font-size: 12px;
+    letter-spacing: 0.5px;
+  }
+}
