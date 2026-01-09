@@ -1,428 +1,365 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import GooeyNav from '../components/GooeyNav';
 import FixedBackground from '../components/FixedBackground';
 import Folder from '../components/Folder';
-
-// 導入道具圖片
+import PhaseRoadmap2 from '../components/PhaseRoadmap2';
+// 導入圖片
+import challenge1Img from '../assets/Challenge1.png';
+import challenge2Img from '../assets/Challenge2.png';
+// 道具圖片
 import item1 from '../assets/item1.png';
 import item2 from '../assets/item2.jpg';
 import item3 from '../assets/item3.png';
 import item4 from '../assets/item4.png';
 import item5 from '../assets/item5.png';
+import AuthCN1 from '../assets/AuthCN1.png';
+import AuthCN2 from '../assets/AuthCN2.png';
+import AuthCN3 from '../assets/AuthCN3.png';
+import AuthCN4 from '../assets/AuthCN4.png';
+import AuthCN5 from '../assets/AuthCN5.png';
+import AuthCN6 from '../assets/AuthCN6.png';
+import AuthCN7 from '../assets/AuthCN7.png';
+import AuthCN8 from '../assets/AuthCN8.png';
+import AuthCN9 from '../assets/AuthCN9.png';
+import AuthEN1 from '../assets/AuthEN1.png';
+import AuthEN2 from '../assets/AuthEN2.png';
+import AuthEN3 from '../assets/AuthEN3.png';
+import AuthEN4 from '../assets/AuthEN4.png';
+import AuthEN5 from '../assets/AuthEN5.png';
+import AuthEN6 from '../assets/AuthEN6.png';
+import AuthEN7 from '../assets/AuthEN7.png';
+import AuthEN8 from '../assets/AuthEN8.png';
+import AuthEN9 from '../assets/AuthEN9.png';
 import item6 from '../assets/item6.png';
+// Web3錢包知識本圖片
+import walletBook1cn from '../assets/whatiswebewallet1cn.png';
+import walletBook1en from '../assets/whatiswebwallet1en.png';
+import walletBook2cn from '../assets/whatiswebwallet2cn.png';
+import walletBook2en from '../assets/whatiswebwallet2en.png';
+import walletBook3cn from '../assets/whatwebwallet3.png';
+import walletBook3en from '../assets/whatiswebwallet3en.png';
+import transferGuide1Cn from '../assets/Transfer1cn.png';
+import transferGuide1En from '../assets/Transfer1en.png';
+import transferGuide2Cn from '../assets/Transfer2cn.png';
+import transferGuide2En from '../assets/Transfer2en.png';
+import transferGuide3Cn from '../assets/transfer3cn.png';
+import transferGuide3En from '../assets/Transfer3en.png';
+// 中心化交易平台指南圖片
+import cexGuide1Cn from '../assets/CEXCN1.png';
+import cexGuide1En from '../assets/CEXEN1.png';
+import cexGuide2Cn from '../assets/CEXCN2.png';
+import cexGuide2En from '../assets/CEXEN2.png';
+import cexGuide3Cn from '../assets/CEXCN3.png';
+import cexGuide3En from '../assets/CEXEN3.png';
+import cexGuide4Cn from '../assets/CEXCN4.png';
+import cexGuide4En from '../assets/CEXEN4.png';
+// 去中心化平台指南圖片
+import dexGuide1Cn from '../assets/DEXCN1.png';
+import dexGuide1En from '../assets/DEXEN1.png';
+import dexGuide2Cn from '../assets/DEXCN2.png';
+import dexGuide2En from '../assets/DEXEN2.png';
+import dexGuide3Cn from '../assets/DEXCN3.png';
+import dexGuide3En from '../assets/DEXEN3.png';
 
 const GamePage = () => {
   const navigate = useNavigate();
-  const [selectedLevel, setSelectedLevel] = useState(null);
   const [language, setLanguage] = useState('chinese');
   const [showBackpack, setShowBackpack] = useState(false);
-  const [showChallenge, setShowChallenge] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(0); // 選中的道具索引
-  const [selectedChallenge, setSelectedChallenge] = useState(null); // 選中的挑戰索引
-  const [selectedChallengeIndex, setSelectedChallengeIndex] = useState(null); // 選中的挑戰索引
+  const [selectedItem, setSelectedItem] = useState(0);
+  const [showItemViewer, setShowItemViewer] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showAuthorizationChallenges, setShowAuthorizationChallenges] = useState(false);
 
   // 道具數據
   const items = [
-    {
-      id: 1,
-      name: '地址複製/對比簿',
-      nameEn: 'Address Copy/Comparison Book',
-      description: '顯示目標地址與已知官方地址的逐字符讓用戶對比。遇到疑似地址投毒（如收款地址被篡改）時使用。',
-      descriptionEn: 'Displays target addresses character by character for comparison with known official addresses. Use when encountering suspected address poisoning (such as tampered recipient addresses).',
-      rarity: '普通',
+    { 
+      name: 'WEB3錢包知識本', 
+      nameEn: 'WEB3 Wallet Knowledge Book',
+      description: '查看WEB3錢包基礎知識', 
+      descriptionEn: 'View WEB3 wallet basic knowledge',
+      rarity: '普通', 
       rarityEn: 'Common',
-      type: '防護道具',
-      typeEn: 'Protection Tool',
-      image: item1
+      type: '知識道具', 
+      typeEn: 'Knowledge Item',
+      image: item1,
+      usable: true,
+      images: {
+        chinese: [walletBook1cn, walletBook2cn, walletBook3cn],
+        english: [walletBook1en, walletBook2en, walletBook3en]
+      }
     },
-    {
-      id: 2,
-      name: '槓桿',
-      nameEn: 'Leverage',
-      description: '若本題答對，獎勵 ×2；若答錯，懲罰 ×2（無視慌亂狀態）。對自己判斷極有信心時用於快速積累 Balance。',
-      descriptionEn: 'If answered correctly, reward ×2; if answered incorrectly, penalty ×2 (ignores panic status). Use when extremely confident in your judgment for quick Balance accumulation.',
-      rarity: '稀有',
-      rarityEn: 'Rare',
-      type: '風險工具',
-      typeEn: 'Risk Tool',
-      image: item2
-    },
-    {
-      id: 3,
-      name: 'Domain 識別本',
-      nameEn: 'Domain Identification Book',
-      description: '一系列正規domain供玩家參考。面對釣魚網站界面時識別真假平台。',
-      descriptionEn: 'A series of legitimate domains for player reference. Identify real vs fake platforms when facing phishing website interfaces.',
-      rarity: '稀有',
-      rarityEn: 'Rare',
-      type: '識別工具',
-      typeEn: 'Identification Tool',
-      image: item3
-    },
-    {
-      id: 4,
-      name: '用戶命名本',
-      nameEn: 'User Naming Book',
-      description: '展示官方用戶的命名方法。判斷對方是否為真實項目方或偽裝帳號。',
-      descriptionEn: 'Shows official user naming methods. Determine if the other party is a real project team or a disguised account.',
-      rarity: '史詩',
+    { 
+      name: 'Web3 轉賬指南', 
+      nameEn: 'Web3 Transfer Guide',
+      description: '查看安全轉賬流程與注意事項', 
+      descriptionEn: 'View safe transfer steps and precautions',
+      rarity: '史詩', 
       rarityEn: 'Epic',
-      type: '驗證工具',
-      typeEn: 'Verification Tool',
-      image: item4
+      type: '輔助道具', 
+      typeEn: 'Support Item',
+      image: item2,
+      usable: true,
+      images: {
+        chinese: [transferGuide1Cn, transferGuide2Cn, transferGuide3Cn],
+        english: [transferGuide1En, transferGuide2En, transferGuide3En]
+      }
     },
-    {
-      id: 5,
-      name: '語氣分析器',
-      nameEn: 'Tone Analyzer',
-      description: '掃描頁面或消息文本，識別誘導性話術（如「緊急領取」「最後機會」等）。遇到可疑空投、客服私信或社群公告時輔助判斷。',
-      descriptionEn: 'Scans page or message text to identify manipulative language (such as "urgent claim", "last chance", etc.). Assist in judgment when encountering suspicious airdrops, customer service messages, or community announcements.',
-      rarity: '史詩',
+    { 
+      name: '中心化交易平台指南', 
+      nameEn: 'Centralized Exchange Platform Guide',
+      description: '這本指南主要介紹正規的中心化平台以及釣魚網站之間的區別,以及提供相關政府平台超連結讓玩家查閱', 
+      descriptionEn: 'This guide introduces the differences between legitimate centralized platforms and phishing sites, and provides relevant government platform hyperlinks for players to consult',
+      rarity: '史詩', 
       rarityEn: 'Epic',
-      type: '分析工具',
-      typeEn: 'Analysis Tool',
-      image: item5
+      type: '知識道具', 
+      typeEn: 'Knowledge Item',
+      image: item3,
+      usable: true,
+      images: {
+        chinese: [cexGuide1Cn, cexGuide2Cn, cexGuide3Cn, cexGuide4Cn],
+        english: [cexGuide1En, cexGuide2En, cexGuide3En, cexGuide4En]
+      }
     },
-    {
-      id: 6,
-      name: '官方公告簿',
-      nameEn: 'Official Announcement Book',
-      description: '展示一些正規官方公告供玩家參考（如X/官網/discord）。驗證「合約升級」「緊急授權」等高風險操作的真實性。',
-      descriptionEn: 'Shows legitimate official announcements for player reference (such as X/official website/discord). Verify the authenticity of high-risk operations like "contract upgrades" and "emergency authorizations".',
-      rarity: '傳說',
-      rarityEn: 'Legendary',
-      type: '參考工具',
-      typeEn: 'Reference Tool',
-      image: item6
-    }
+    { 
+      name: '去中心化平台指南', 
+      nameEn: 'Decentralized Platform Guide',
+      description: '這本指南是介紹去中心化平台需要注意的事項', 
+      descriptionEn: 'This guide introduces important considerations for decentralized platforms',
+      rarity: '史詩', 
+      rarityEn: 'Epic',
+      type: '知識道具', 
+      typeEn: 'Knowledge Item',
+      image: item4,
+      usable: true,
+      images: {
+        chinese: [dexGuide1Cn, dexGuide2Cn, dexGuide3Cn],
+        english: [dexGuide1En, dexGuide2En, dexGuide3En]
+      }
+    },
+    { 
+      name: '授權指南', 
+      nameEn: 'Authorization Guide',
+      description: '學習如何辨識與管理 Web3 授權，避免惡意無限授權攻擊', 
+      descriptionEn: 'Learn how to read and manage Web3 approvals to avoid malicious unlimited approvals',
+      rarity: '史詩', 
+      rarityEn: 'Epic',
+      type: '輔助道具', 
+      typeEn: 'Support Item',
+      image: item5,
+      usable: true,
+      images: {
+        chinese: [AuthCN1, AuthCN2, AuthCN3, AuthCN4, AuthCN5, AuthCN6, AuthCN7, AuthCN8, AuthCN9],
+        english: [AuthEN1, AuthEN2, AuthEN3, AuthEN4, AuthEN5, AuthEN6, AuthEN7, AuthEN8, AuthEN9],
+      }
+    },
+    // 第 6 格改為空位，不再放入道具（顯示為 Empty）
   ];
 
-  const levels = [
-    { id: 1, name: 'Level 1', color: '#10b981' },
-    { id: 2, name: 'Level 2', color: '#f59e0b' },
-    { id: 3, name: 'Level 3', color: '#ef4444' },
-    { id: 4, name: 'Level 4', color: '#8b5cf6' },
-    { id: 5, name: 'Level 5', color: '#ec4899' },
-    { id: 6, name: 'Level 6', color: '#06b6d4' }
-  ];
-
-  // 挑戰數據 - 每個Level只有4個挑戰
-  const challenges = {
-    1: [
-      { id: 1, title: '餌光誘許', description: '一紙虛贈，換得全權之許。', completed: false },
-      { id: 2, title: '獨徑無歧', description: '唯一之跡，無擾無疑', completed: false },
-      { id: 3, title: '密語成局', description: '私言若棋，落子無回', completed: false },
-      { id: 4, title: '眾跡分明', description: '多跡並行，各不相蒙', completed: false }
-    ],
-    2: [
-      { id: 1, title: '高級地址投毒識別', description: '識別相似的DeFi協議地址', completed: false },
-      { id: 2, title: '末影惑流', description: '近似之跡，悄然分流', completed: false },
-      { id: 3, title: '智能合約', description: '檢查合約代碼', completed: false },
-      { id: 4, title: '薦所直連', description: '依網紅直薦，啟用專屬交易通道。', completed: false }
-    ],
-    3: [
-      { id: 1, title: 'NFT 驗證', description: '驗證 NFT 真實性', completed: false },
-      { id: 2, title: '雙影疊跡', description: '兩道近似之影，混跡於眾流之中', completed: false },
-      { id: 3, title: '價格分析', description: '分析價格合理性', completed: false },
-      { id: 4, title: '創作者驗證', description: '驗證創作者身份', completed: false }
-    ],
-    4: [
-      { id: 1, title: 'DeFi 協議', description: '了解 DeFi 協議', completed: false },
-      { id: 2, title: '形淆眾流', description: '形似者眾，真跡隱於其間', completed: false },
-      { id: 3, title: '收益計算', description: '計算收益風險', completed: false },
-      { id: 4, title: '協議審計', description: '檢查協議審計', completed: false }
-    ],
-    5: [
-      { id: 1, title: '代幣分析', description: '分析代幣基本面', completed: false },
-      { id: 2, title: '微跡藏真', description: '真跡如塵，混於眾響之中', completed: false },
-      { id: 3, title: '市場情緒', description: '分析市場情緒', completed: false },
-      { id: 4, title: '風險評估', description: '評估投資風險', completed: false }
-    ],
-    6: [
-      { id: 1, title: '高級安全', description: '實施高級安全措施', completed: false },
-      { id: 2, title: '時限爭鋒', description: '真偽僅隔毫釐，而時光不待細察', completed: false },
-      { id: 3, title: '硬體錢包', description: '使用硬體錢包', completed: false },
-      { id: 4, title: '安全審計', description: '進行安全審計', completed: false }
-    ]
-  };
-
-  // 英文挑戰數據
-  const challengesEn = {
-    1: [
-      { id: 1, title: 'Baited Consent', description: 'A phantom gift—in exchange for full consent.', completed: false },
-      { id: 2, title: 'Single Path', description: 'One trace, no interference, no doubt', completed: false },
-      { id: 3, title: 'Whispered Moves', description: 'Words like pawns, once moved, cannot be taken back', completed: false },
-      { id: 4, title: 'Multiple Traces', description: 'Multiple traces, each distinct and clear', completed: false }
-    ],
-    2: [
-      { id: 1, title: 'Advanced Address Poisoning', description: 'Identify similar DeFi protocol addresses', completed: false },
-      { id: 2, title: 'Shadow Flow', description: 'Similar traces, quietly diverging', completed: false },
-      { id: 3, title: 'Smart Contract', description: 'Check contract code', completed: false },
-      { id: 4, title: 'Featured Access', description: 'Activate your exclusive trading access through a creator\'s referral.', completed: false }
-    ],
-    3: [
-      { id: 1, title: 'NFT Verification', description: 'Verify NFT authenticity', completed: false },
-      { id: 2, title: 'Dual Shadows', description: 'Two similar shadows, mixed among the crowd', completed: false },
-      { id: 3, title: 'Price Analysis', description: 'Analyze price rationality', completed: false },
-      { id: 4, title: 'Creator Verification', description: 'Verify creator identity', completed: false }
-    ],
-    4: [
-      { id: 1, title: 'DeFi Protocol', description: 'Understand DeFi protocols', completed: false },
-      { id: 2, title: 'Shape Confusion', description: 'Many similar shapes, true traces hidden among them', completed: false },
-      { id: 3, title: 'Yield Calculation', description: 'Calculate yield risks', completed: false },
-      { id: 4, title: 'Protocol Audit', description: 'Check protocol audits', completed: false }
-    ],
-    5: [
-      { id: 1, title: 'Token Analysis', description: 'Analyze token fundamentals', completed: false },
-      { id: 2, title: 'Micro Traces', description: 'True traces like dust, mixed among the noise', completed: false },
-      { id: 3, title: 'Market Sentiment', description: 'Analyze market sentiment', completed: false },
-      { id: 4, title: 'Risk Assessment', description: 'Assess investment risks', completed: false }
-    ],
-    6: [
-      { id: 1, title: 'Advanced Security', description: 'Implement advanced security measures', completed: false },
-      { id: 2, title: 'Time Limit', description: 'Truth and falsehood separated by a hair, time waits for no careful examination', completed: false },
-      { id: 3, title: 'Hardware Wallet', description: 'Use hardware wallet', completed: false },
-      { id: 4, title: 'Security Audit', description: 'Conduct security audit', completed: false }
-    ]
-  };
-
-  const handleStartGame = () => {
-    if (selectedLevel) {
-      console.log('開始遊戲:', { selectedLevel });
-      setShowChallenge(true);
-    }
-  };
-
-  const handleStartChallenge = () => {
-    // 使用新的动态路由系统
-    if (selectedLevel === 1) {
-      if (selectedChallengeIndex === 0) {
-        // Level 1-1: 识别授权陷阱（Solana空投诈骗）
-        navigate('/challenge/phishing/level1-1');
-      } else if (selectedChallengeIndex === 1) {
-        // Level 1-2: 安全转账操作（地址投毒基础）
-        navigate('/challenge/addressPoisoning/level1-2');
-      } else if (selectedChallengeIndex === 2) {
-        // Level 1-3: 聊天软件NFT诈骗
-        navigate('/challenge/chatNFT/level1-3');
-      } else if (selectedChallengeIndex === 3) {
-        // Level 1-4: 多条转账记录挑战
-        navigate('/challenge/addressPoisoning/level1-4');
-      }
-    } else if (selectedLevel === 2) {
-      if (selectedChallengeIndex === 0) {
-        // Level 2-1: 高级地址投毒识别
-        navigate('/challenge/addressPoisoning/level2-1');
-      } else if (selectedChallengeIndex === 1) {
-        // Level 2-2: 末影惑流（相似地址投毒）
-        navigate('/challenge/addressPoisoning/level2-2');
-      } else if (selectedChallengeIndex === 3) {
-        // Level 2-4: Google 搜尋識別（釣魚 vs 官方）
-        navigate('/challenge/phishing/level2-4');
-      }
-    } else if (selectedLevel === 3) {
-      if (selectedChallengeIndex === 1) {
-        // Level 3-2: 双影叠迹（多条投毒地址 + 翻页）
-        navigate('/challenge/addressPoisoning/level3-2');
-      }
-    } else if (selectedLevel === 4) {
-      if (selectedChallengeIndex === 1) {
-        // Level 4-2: 形淆众流（多个投毒地址混淆）
-        navigate('/challenge/addressPoisoning/level4-2');
-      }
-    } else if (selectedLevel === 5) {
-      if (selectedChallengeIndex === 1) {
-        // Level 5-2: 微跡藏真（小额投毒地址混淆）
-        navigate('/challenge/addressPoisoning/level5-2');
-      }
-    } else if (selectedLevel === 6) {
-      if (selectedChallengeIndex === 1) {
-        // Level 6-2: 時限爭鋒（90秒限时NFT交易挑战）
-        navigate('/challenge/addressPoisoning/level6-2');
-      }
-    }
-    // 继续添加其他关卡的挑战路由
-  };
-
-  // 處理關卡選擇
-  const handleLevelSelect = (levelId) => {
-    setSelectedLevel(levelId);
-  };
-
-  const pixelButtonStyle = {
-    fontFamily: 'Arial, sans-serif',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-    letterSpacing: '1px',
-    border: '3px solid #000',
-    boxShadow: '4px 4px 0px #000',
-    transition: 'all 0.1s ease',
-    cursor: 'pointer',
-    imageRendering: 'pixelated'
-  };
-
-  const pixelCardStyle = {
-    border: '3px solid #000',
-    boxShadow: '6px 6px 0px #000',
-    backgroundColor: '#1f2937',
-    imageRendering: 'pixelated'
-  };
-
+  // 根據 FYP 報告定義的教學目標 [cite: 15, 23, 28]
   const content = {
     chinese: {
-      title: 'WEB3釣魚遊戲',
-      subtitle: '選擇你的冒險',
-      selectLevel: '選擇關卡',
-      startAdventure: '開始冒險',
-      backHome: '返回主頁',
-      backpack: '背包',
-      backpackTitle: '背包',
-      selectedItem: '選中物品',
+      title: 'WEB3防釣魚遊戲',
+      subtitle: '從建立錢包到授權內容釣魚的防禦培訓',
+      backpack: '背包系統',
+      backpackTitle: '道具背包',
+      selectedItem: '選中道具',
       itemDescription: '道具描述',
       rarity: '稀有度',
       type: '類型',
-      items: '物品',
-      emptySlots: '空位',
-      challengeTitle: '挑戰',
-      levelDescription: '關卡描述',
-      progress: '完成進度',
-      startAdventureButton: '開始冒險'
+      items: '道具',
+      emptySlots: '空格',
+      useItem: '使用道具',
+      close: '關閉',
+      next: '下一頁',
+      prev: '上一頁'
     },
     english: {
-      title: 'WEB3 PHISHING GAME',
-      subtitle: 'Choose Your Adventure',
-      selectLevel: 'Select Level',
-      startAdventure: 'Start Adventure',
-      backHome: 'Back Home',
+      title: 'WEB3 Anti-Phishing Game',
+      subtitle: 'From Wallet Setup to Authorization Phishing Defense Training',
       backpack: 'Backpack',
-      backpackTitle: 'Backpack',
+      backpackTitle: 'Item Backpack',
       selectedItem: 'Selected Item',
       itemDescription: 'Item Description',
       rarity: 'Rarity',
       type: 'Type',
       items: 'Items',
       emptySlots: 'Empty Slots',
-      challengeTitle: 'Challenges',
-      levelDescription: 'Level Description',
-      progress: 'Progress',
-      startAdventureButton: 'Start Adventure'
+      useItem: 'Use Item',
+      close: 'Close',
+      next: 'Next',
+      prev: 'Prev'
+    }
+  };
+  const t = content[language];
+
+  // 處理使用道具
+  const handleUseItem = (itemIndex) => {
+    const item = items[itemIndex];
+    if (item?.usable && item?.images) {
+      setCurrentImageIndex(0);
+      setShowItemViewer(true);
+      setShowBackpack(false);
     }
   };
 
-  const currentContent = content[language];
+  // 處理圖片切換
+  const handleNextImage = () => {
+    const item = items[selectedItem];
+    if (item?.images) {
+      const images = item.images[language] || item.images.chinese;
+      // 第 3 個道具有 5 頁（4 張圖片 + 1 頁表格）
+      // 第 5 個道具有 10 頁（9 張圖片 + 1 頁文字說明）
+      let maxPages = images.length;
+      if (selectedItem === 2) maxPages = 5;
+      if (selectedItem === 4) maxPages = 10;
+      setCurrentImageIndex((prev) => (prev + 1) % maxPages);
+    }
+  };
+
+  const handlePrevImage = () => {
+    const item = items[selectedItem];
+    if (item?.images) {
+      const images = item.images[language] || item.images.chinese;
+      let maxPages = images.length;
+      if (selectedItem === 2) maxPages = 5;
+      if (selectedItem === 4) maxPages = 10;
+      setCurrentImageIndex((prev) => (prev - 1 + maxPages) % maxPages);
+    }
+  };
+  // 像素字體樣式定義 - 確保高保真模擬感 [cite: 30]
+  const pixelFontStyle = {
+    fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
+    imageRendering: 'pixelated',
+  };
+
+  const blueTextStyle = {
+    ...pixelFontStyle,
+    color: '#22d3ee',
+    textShadow: '0 0-10px rgba(34, 211, 238, 0.6)',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
+    fontWeight: 'bold'
+  };
 
   return (
-    <div 
-      className="w-full h-screen overflow-hidden relative flex flex-col pixel-font"
-      style={{ 
-        background: 'linear-gradient(45deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
-        fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-        imageRendering: 'pixelated',
-        minHeight: '100vh',
-        width: '100vw'
-      }}
-    >
-      {/* 固定背景效果 */}
+    <div className="w-screen h-screen overflow-hidden relative flex flex-col items-center justify-center bg-[#0f172a] text-white pixel-font">
+      {/* 動態粒子背景 */}
       <FixedBackground />
 
-      {/* 語言切換 - 左上角 */}
-      <div className="absolute top-4 left-4 z-10">
-        <div className="flex gap-2">
-          <button
+      {/* 頂部導航：語言切換與背包 - 當顯示授權挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && (
+        <div className="absolute top-0 left-0 w-full flex justify-between items-center p-10 z-[60]">
+        <div className="flex gap-8 text-base tracking-widest">
+          <span 
             onClick={() => setLanguage('chinese')}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '4px',
-              transition: 'all 0.3s ease',
-              backgroundColor: language === 'chinese' ? '#22d3ee' : 'transparent',
-              color: language === 'chinese' ? '#ffffff' : '#9ca3af',
-              border: '2px solid #000',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-              fontWeight: 'bold',
-              textTransform: 'uppercase',
-              letterSpacing: '1px'
-            }}
-            onMouseEnter={(e) => {
-              if (language !== 'chinese') {
-                e.target.style.backgroundColor = '#374151';
-                e.target.style.color = '#ffffff';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (language !== 'chinese') {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.color = '#9ca3af';
-              }
+            style={{ 
+              ...blueTextStyle, 
+              opacity: language === 'chinese' ? 1 : 0.4,
+              borderBottom: language === 'chinese' ? '2px solid #22d3ee' : 'none',
+              paddingBottom: '4px'
             }}
           >
             中文
-          </button>
-          <button
+          </span>
+          <span 
             onClick={() => setLanguage('english')}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '4px',
-              transition: 'all 0.3s ease',
-              backgroundColor: language === 'english' ? '#22d3ee' : 'transparent',
-              color: language === 'english' ? '#ffffff' : '#9ca3af',
-              border: '2px solid #000',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-              fontWeight: 'bold',
-              textTransform: 'uppercase',
-              letterSpacing: '1px'
-            }}
-            onMouseEnter={(e) => {
-              if (language !== 'english') {
-                e.target.style.backgroundColor = '#374151';
-                e.target.style.color = '#ffffff';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (language !== 'english') {
-                e.target.style.backgroundColor = 'transparent';
-                e.target.style.color = '#9ca3af';
-              }
+            style={{ 
+              ...blueTextStyle, 
+              opacity: language === 'english' ? 1 : 0.4,
+              borderBottom: language === 'english' ? '2px solid #22d3ee' : 'none',
+              paddingBottom: '4px'
             }}
           >
-            English
-          </button>
+            ENGLISH
+          </span>
         </div>
-      </div>
-
-      {/* 背包按鈕 - 右上角 */}
-      <div className="absolute top-4 right-4 z-10">
         <div 
-          className="flex items-center gap-2 cursor-pointer"
-          onClick={() => setShowBackpack(!showBackpack)}
-          style={{
-            fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-            fontWeight: 'bold',
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            color: '#ffffff',
-            fontSize: '14px',
-            transition: 'all 0.3s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.color = '#22d3ee';
-            e.target.style.transform = 'scale(1.05)';
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.color = '#ffffff';
-            e.target.style.transform = 'scale(1)';
-          }}
+          onClick={() => setShowBackpack(true)} 
+          className="flex items-center gap-2 group"
+          style={blueTextStyle}
         >
-          <Folder size={2} color="#22d3ee" />
-          <span>{currentContent.backpack}</span>
+          <Folder size={1.2} color="#22d3ee" />
+          <span className="group-hover:opacity-80 uppercase">{t.backpack}</span>
         </div>
       </div>
+      )}
+
+      {/* 主內容區：標題與大關卡選擇 [cite: 34, 42] - 當顯示授權挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && (
+      <main className="flex flex-col items-center justify-center z-10 w-full">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center mb-16"
+        >
+          <h1 className="text-5xl md:text-6xl font-black mb-4 tracking-tighter"
+              style={{ 
+                ...pixelFontStyle,
+                color: '#22d3ee', 
+                textShadow: '4px 4px 0px #000, 0 0 20px rgba(34, 211, 238, 0.5)',
+                textTransform: 'uppercase'
+              }}>
+            {t.title}
+          </h1>
+          <p className="text-xl md:text-2xl opacity-80 tracking-[0.3em] font-bold" style={pixelFontStyle}>
+            {t.subtitle}
+          </p>
+        </motion.div>
+
+        {/* 核心圖片按鈕區：消除方塊感並增加呼吸動畫 */}
+        <div className="flex flex-col md:flex-row items-center justify-center gap-24">
+          
+          {/* 第一階段：基礎設施 [cite: 22, 23, 200] */}
+          <motion.div
+            whileHover={{ 
+              scale: 1.15, 
+              y: -15, 
+              filter: "drop-shadow(0 0 25px rgba(34, 211, 238, 0.9)) brightness(1.2)" 
+            }}
+            whileTap={{ scale: 0.95 }}
+            initial={{ y: 0 }}
+            animate={{ 
+              y: [0, -10, 0], 
+              transition: { duration: 5, repeat: Infinity, ease: "easeInOut" }
+            }}
+            className="cursor-pointer"
+            onClick={() => navigate('/challenge/onboarding/phase1-1', { replace: false })}
+          >
+            <img 
+              src={challenge1Img} 
+              alt="Phase 1: Onboarding" 
+              className="w-[380px] md:w-[420px] h-auto transition-all duration-300" 
+              style={{ imageRendering: 'pixelated' }} 
+            />
+          </motion.div>
+
+          {/* 第二階段：交互與防禦 */}
+          <motion.div
+            whileHover={{ 
+              scale: 1.15, 
+              y: -15, 
+              filter: "drop-shadow(0 0 25px rgba(249, 115, 22, 0.9)) brightness(1.2)" 
+            }}
+            whileTap={{ scale: 0.95 }}
+            initial={{ y: 0 }}
+            animate={{ 
+              y: [0, -10, 0], 
+              transition: { duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }
+            }}
+            className="cursor-pointer"
+            onClick={() => setShowAuthorizationChallenges(true)}
+          >
+            <img 
+              src={challenge2Img} 
+              alt="Phase 2: Advanced Defense" 
+              className="w-[380px] md:w-[420px] h-auto transition-all duration-300" 
+              style={{ imageRendering: 'pixelated' }} 
+            />
+          </motion.div>
+        </div>
+      </main>
+      )}
 
       {/* 背包界面 - 居中顯示 */}
       {showBackpack && (
@@ -433,9 +370,9 @@ const GamePage = () => {
           transition={{ duration: 0.3 }}
           className="fixed inset-0 flex items-center justify-center z-50"
         >
-          {/* 背景遮罩 - 極低透明度以保持粒子背景可見 */}
+          {/* 背景遮罩 */}
           <div 
-            className="absolute inset-0 bg-black bg-opacity-5"
+            className="absolute inset-0 bg-black bg-opacity-50"
             onClick={() => setShowBackpack(false)}
           />
           
@@ -450,17 +387,26 @@ const GamePage = () => {
             {/* 關閉按鈕 */}
             <button
               onClick={() => setShowBackpack(false)}
-              className="absolute top-6 right-6 text-white cursor-pointer hover:text-gray-300 transition-colors"
+              className="pixel-button absolute top-2 right-6"
               style={{
-                fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-                fontSize: '24px',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                transition: 'all 0.3s ease',
+                backgroundColor: '#374151',
+                color: '#ffffff',
+                border: '2px solid #000',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontFamily: "'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
                 fontWeight: 'bold',
-                backgroundColor: 'transparent',
-                border: 'none',
-                padding: '0'
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
+                textShadow: '2px 2px 0px #000',
+                WebkitFontSmoothing: 'none',
+                MozOsxFontSmoothing: 'unset'
               }}
             >
-              ×
+              {t.close}
             </button>
             
             <h3 className="text-2xl font-bold mb-6 text-cyan-400 text-center" style={{ 
@@ -468,7 +414,7 @@ const GamePage = () => {
               textTransform: 'uppercase',
               letterSpacing: '2px'
             }}>
-              {currentContent.backpackTitle}
+              {t.backpackTitle}
             </h3>
             
             {/* 上方區域 - 左側放大物件，右側描述 */}
@@ -479,7 +425,7 @@ const GamePage = () => {
                   fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
                   textTransform: 'uppercase'
                 }}>
-                  {currentContent.selectedItem}
+                  {t.selectedItem}
                 </h4>
                 <div className="w-32 h-32 flex items-center justify-center mx-auto" style={{
                   border: '3px solid #000000',
@@ -503,7 +449,7 @@ const GamePage = () => {
                   fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
                   textTransform: 'uppercase'
                 }}>
-                  {currentContent.itemDescription}
+                  {t.itemDescription}
                 </h4>
                 <div className="p-4 border-2 border-gray-600 bg-gray-800" style={{
                   border: '2px solid #4b5563',
@@ -518,11 +464,37 @@ const GamePage = () => {
                     {language === 'chinese' ? items[selectedItem]?.description : items[selectedItem]?.descriptionEn}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {currentContent.rarity}: {language === 'chinese' ? items[selectedItem]?.rarity : items[selectedItem]?.rarityEn}
+                    {t.rarity}: {language === 'chinese' ? items[selectedItem]?.rarity : items[selectedItem]?.rarityEn}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {currentContent.type}: {language === 'chinese' ? items[selectedItem]?.type : items[selectedItem]?.typeEn}
+                    {t.type}: {language === 'chinese' ? items[selectedItem]?.type : items[selectedItem]?.typeEn}
                   </p>
+                  {/* 使用道具按鈕 */}
+                  {items[selectedItem]?.usable && (
+                    <button
+                      onClick={() => handleUseItem(selectedItem)}
+                      className="pixel-button mt-4 w-full"
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '4px',
+                        transition: 'all 0.3s ease',
+                        backgroundColor: '#374151',
+                        color: '#ffffff',
+                        border: '2px solid #000',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        fontFamily: "'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+                        fontWeight: 'bold',
+                        textTransform: 'uppercase',
+                        letterSpacing: '2px',
+                        textShadow: '2px 2px 0px #000',
+                        WebkitFontSmoothing: 'none',
+                        MozOsxFontSmoothing: 'unset'
+                      }}
+                    >
+                      {t.useItem}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -544,7 +516,7 @@ const GamePage = () => {
                     transform: selectedItem === index ? 'scale(1.05)' : 'scale(1)'
                   }}
                 >
-                  {index < 6 ? (
+                  {index < 5 ? (
                     <img
                       src={items[index]?.image}
                       alt={items[index]?.name}
@@ -563,316 +535,358 @@ const GamePage = () => {
               fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
               lineHeight: '1.4'
             }}>
-              <p>{currentContent.items}: 3/10</p>
-              <p>{currentContent.emptySlots}: 7</p>
+              <p>{t.items}: 5/10</p>
+              <p>{t.emptySlots}: 5</p>
             </div>
           </div>
         </motion.div>
       )}
 
-      {/* 挑戰界面 */}
-      {showChallenge && selectedLevel && (
+      {/* 道具查看器 - 顯示圖片序列 */}
+      {showItemViewer && items[selectedItem]?.images && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.8 }}
-          transition={{ duration: 0.3 }}
-          className="fixed inset-0 flex items-center justify-center z-50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 flex items-center justify-center z-[60]"
         >
-          {/* 背景遮罩 - 極低透明度以保持粒子背景可見 */}
+          {/* 背景遮罩 */}
           <div 
-            className="absolute inset-0 bg-black bg-opacity-5"
-            onClick={() => setShowChallenge(false)}
+            className="absolute inset-0 bg-black bg-opacity-80"
+            onClick={() => setShowItemViewer(false)}
           />
           
-          {/* 挑戰內容 */}
-          <div className="relative p-20 text-white" style={{
-            width: '95vw',
-            maxWidth: '1800px',
-            minHeight: '90vh',
-            backgroundColor: '#1f2937',
-            border: '6px solid #000000',
-            boxShadow: '12px 12px 0px #000000',
-            borderRadius: '24px'
-          }}>
+          {/* 圖片容器 */}
+          <div className="relative z-10 max-w-4xl mx-4 pb-32">
             {/* 關閉按鈕 */}
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowChallenge(false);
-              }}
-              className="absolute top-8 right-8 text-white cursor-pointer hover:text-gray-300 transition-colors z-10"
+              onClick={() => setShowItemViewer(false)}
+              className="pixel-button absolute -top-12 right-0"
               style={{
-                fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-                fontSize: '32px',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                transition: 'all 0.3s ease',
+                backgroundColor: '#374151',
+                color: '#ffffff',
+                border: '2px solid #000',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontFamily: "'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
                 fontWeight: 'bold',
-                backgroundColor: 'transparent',
-                border: 'none',
-                padding: '0'
+                textTransform: 'uppercase',
+                letterSpacing: '2px',
+                textShadow: '2px 2px 0px #000',
+                WebkitFontSmoothing: 'none',
+                MozOsxFontSmoothing: 'unset'
               }}
             >
-              ×
+              {t.close}
             </button>
-            
-            <h3 className="text-5xl font-bold mb-20 text-cyan-400 text-center" style={{ 
-              fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace', 
-              textTransform: 'uppercase',
-              letterSpacing: '4px'
-            }}>
-              {levels[selectedLevel - 1]?.name} - {currentContent.challengeTitle}
-            </h3>
 
-            {/* 挑戰列表 - 圓形設計 */}
-            <div className="grid grid-cols-4 gap-20 mb-40">
-              {(language === 'chinese' ? challenges[selectedLevel] : challengesEn[selectedLevel])?.map((challenge, index) => (
-                <div
-                  key={challenge.id}
-                  onClick={() => {
-                    setSelectedChallenge(selectedChallenge === index ? null : index);
-                    setSelectedChallengeIndex(selectedChallenge === index ? null : index);
-                  }}
-                  className="flex flex-col items-center cursor-pointer hover:scale-105 transition-all duration-200"
-                >
-                  {/* 圓形挑戰按鈕 - 超大尺寸 */}
-                  <div
-                    className="w-60 h-60 rounded-full bg-gray-800 flex flex-col items-center justify-center mb-16"
-                    style={{
-                      border: selectedChallenge === index ? '6px solid #ffffff' : '6px solid #000000',
-                      backgroundColor: '#374151',
-                      fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-                      boxShadow: selectedChallenge === index ? '0 0 30px #ffffff, 12px 12px 0px #000000' : '12px 12px 0px #000000',
-                      transform: selectedChallenge === index ? 'scale(1.1)' : 'scale(1)'
-                    }}
-                  >
-                    <span className="text-6xl font-bold text-cyan-400 mb-4">
-                      {index + 1}
-                    </span>
-                    <span className="text-2xl text-gray-400">
-                      {challenge.completed ? '✓' : '○'}
-                    </span>
+            {/* 圖片顯示或表格 / 文字顯示 */}
+            <div className="relative bg-gray-900 rounded-lg overflow-hidden border-4 border-black shadow-2xl">
+              {/* 第 3 個道具第 5 頁：監管機構表格 */}
+              {selectedItem === 2 && currentImageIndex === 4 ? (
+                // 顯示監管機構表格
+                <div className="p-8 text-white" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                  <h2 className="text-2xl font-bold mb-6 text-center text-cyan-400" style={pixelFontStyle}>
+                    {language === 'chinese' ? '監管機構查詢網站' : 'Regulatory Authority Query Websites'}
+                  </h2>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse" style={pixelFontStyle}>
+                      <thead>
+                        <tr className="bg-gray-800">
+                          <th className="border-2 border-gray-600 px-4 py-3 text-left text-cyan-400">
+                            {language === 'chinese' ? '國家／地區' : 'Country/Region'}
+                          </th>
+                          <th className="border-2 border-gray-600 px-4 py-3 text-left text-cyan-400">
+                            {language === 'chinese' ? '監管機構' : 'Regulatory Authority'}
+                          </th>
+                          <th className="border-2 border-gray-600 px-4 py-3 text-left text-cyan-400">
+                            {language === 'chinese' ? '官方查詢網站' : 'Official Query Website'}
+                          </th>
+                          <th className="border-2 border-gray-600 px-4 py-3 text-left text-cyan-400">
+                            {language === 'chinese' ? '可查內容' : 'Queryable Content'}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* 美國 */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">
+                            {language === 'chinese' ? '美國' : 'United States'}
+                          </td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            {language === 'chinese' 
+                              ? 'Financial Crimes Enforcement Network (FinCEN) / 各州 MSB'
+                              : 'Financial Crimes Enforcement Network (FinCEN) / State MSB'}
+                          </td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.fincen.gov/resources/msb-state-selector?spm=a2ty_o01.29997173.0.0.6304517143wAqR" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              FinCEN MSB Registry
+                            </a>
+                          </td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            {language === 'chinese' 
+                              ? '查詢是否註冊為 Money Services Business（MSB）'
+                              : 'Query if registered as Money Services Business (MSB)'}
+                          </td>
+                        </tr>
+                        {/* 英國 */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">
+                            {language === 'chinese' ? '英國' : 'United Kingdom'}
+                          </td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            Financial Conduct Authority (FCA)
+                          </td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://register.fca.org.uk/" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              FCA Register
+                            </a>
+                          </td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            {language === 'chinese' 
+                              ? '搜尋公司名或 FRN 編號（如 Coinbase FRN: 900544）'
+                              : 'Search company name or FRN number (e.g., Coinbase FRN: 900544)'}
+                          </td>
+                        </tr>
+                        {/* 新加坡 */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">
+                            {language === 'chinese' ? '新加坡' : 'Singapore'}
+                          </td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            Monetary Authority of Singapore (MAS)
+                          </td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://eservices.mas.gov.sg/fid/institution" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              MAS Financial Institution Directory
+                            </a>
+                          </td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            {language === 'chinese' 
+                              ? '查詢是否為持牌 Payment Institution（如 Coinbase: PSN0000077）'
+                              : 'Query if licensed as Payment Institution (e.g., Coinbase: PSN0000077)'}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
-
-                  {/* 挑戰標題 */}
-                  <h4 className="text-2xl font-bold text-white text-center mb-8" style={{
-                    fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-                    lineHeight: '1.8',
-                    paddingTop: '8px'
-                  }}>
-                    {challenge.title}
-                  </h4>
-
-                  {/* 挑戰描述 */}
-                  <p className="text-xl text-gray-300 text-center leading-relaxed mb-8" style={{
-                    fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-                    lineHeight: '2.0',
-                    paddingTop: '12px',
-                    paddingBottom: '16px'
-                  }}>
-                    {challenge.description}
-                  </p>
-
                 </div>
-              ))}
-            </div>
+              ) : selectedItem === 4 && currentImageIndex === 9 ? (
+                // 第 5 個道具第 10 頁：Pocket Universe & Revoke.cash 文字說明
+                <div className="p-8 text-white text-left space-y-6" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                  <section>
+                    <h2 className="text-4xl font-bold mb-4 text-cyan-400" style={pixelFontStyle}>
+                      {language === 'chinese' ? '1. Pocket Universe（口袋宇宙）' : '1. Pocket Universe'}
+                    </h2>
+                    <p className="text-lg mb-2">
+                      {language === 'chinese'
+                        ? '角色設定：你的隨身保鑣／交易翻譯官。這是一個免費的瀏覽器擴充插件，像一道防火牆擋在你的錢包（例如 MetaMask）前面。'
+                        : 'Role: your on‑chain bodyguard / transaction translator. It is a free browser extension that sits in front of your wallet (e.g. MetaMask) like a firewall.'}
+                    </p>
+                    <p className="text-lg mb-2">
+                      {language === 'chinese'
+                        ? '當你要簽名時，它會先模擬結果，用「人話」告訴你這筆交易會發生什麼事，例如：'
+                        : 'Before you sign, it simulates the result and explains in plain language what will happen, for example:'}
+                    </p>
+                    <p className="text-lg italic mb-2 text-red-300">
+                      {language === 'chinese'
+                        ? '「⚠️ 如果你簽了這筆，你的 Bored Ape NFT 會被轉走，你將獲得 0 元。」'
+                        : '"⚠️ If you sign this, your Bored Ape NFT will be transferred out and you will receive 0 ETH."'}
+                    </p>
+                    <p className="text-lg">
+                      {language === 'chinese'
+                        ? '它能把像 SetApprovalForAll 這類的授權陷阱轉成紅色警報，還提供最高約 2000 美元的防詐保險（針對特定情境）。'
+                        : 'It can convert tricks like SetApprovalForAll into clear red alerts, and even offers up to around $2,000 of coverage for specific scam scenarios.'}
+                    </p>
+                    <p className="text-base mt-3 text-slate-400">
+                      {language === 'chinese' ? '官方網站： ' : 'Official site: '}
+                      <a 
+                        href="https://pocketuniverse.app/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 hover:text-cyan-300 underline"
+                      >
+                        https://pocketuniverse.app/
+                      </a>
+                    </p>
+                  </section>
 
-            {/* 挑戰描述區域 */}
-            <div className="mt-20 p-16 bg-gray-800 rounded-lg" style={{
-              border: '6px solid #000000',
-              backgroundColor: '#374151',
-              borderRadius: '20px',
-              boxShadow: '10px 10px 0px #000000'
-            }}>
-              <h4 className="text-3xl font-bold text-cyan-400 mb-12" style={{
-                fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-                textTransform: 'uppercase',
-                letterSpacing: '3px',
-                lineHeight: '1.6',
-                paddingTop: '8px'
-              }}>
-                {currentContent.levelDescription}
-              </h4>
-              <p className="text-2xl text-gray-300 leading-relaxed mb-8" style={{
-                fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-                lineHeight: '2.2',
-                paddingTop: '12px',
-                paddingBottom: '16px'
-              }}>
-                {language === 'chinese' 
-                  ? '初階四問，皆關生死；看似尋常，實為根基。'
-                  : 'Four simple trials, yet each decides your fate. What seems mundane is the root of all defense.'
-                }
-              </p>
-            </div>
-
-            {/* 挑戰統計 */}
-            <div className="text-center mt-20 mb-12" style={{
-              fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace'
-            }}>
-              <p className="text-3xl text-gray-300 font-bold" style={{
-                lineHeight: '1.8',
-                paddingTop: '16px',
-                paddingBottom: '20px'
-              }}>
-                {currentContent.progress}: 0/4
-              </p>
-            </div>
-
-            {/* 開始挑戰按鈕和背包按鈕 */}
-            <div className="text-center mt-8">
-              {selectedChallengeIndex === null && (
-                <p className="text-gray-400 mb-4" style={{
-                  fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-                  fontSize: '14px'
-                }}>
-                  {language === 'chinese' ? '請先選擇一個挑戰' : 'Please select a challenge first'}
-                </p>
+                  <section>
+                    <h2 className="text-4xl font-bold mb-4 text-cyan-400" style={pixelFontStyle}>
+                      {language === 'chinese' ? '2. Revoke.cash' : '2. Revoke.cash'}
+                    </h2>
+                    <p className="text-lg mb-2">
+                      {language === 'chinese'
+                        ? '角色設定：你的資產管家／授權大掃除工具。它是一個網站儀表板，用來檢查並撤銷你過去給出去的代幣授權。'
+                        : 'Role: your asset housekeeper / approval cleanup tool. It is a dashboard website for checking and revoking token approvals you have granted before.'}
+                    </p>
+                    <p className="text-lg mb-2">
+                      {language === 'chinese'
+                        ? '例如：你半年前為了領空投，給某個網站「無限動用 USDT」的權限，之後忘記撤銷。如果該合約被駭，駭客可以直接把你現在錢包裡的 USDT 轉走。'
+                        : 'For example: half a year ago you approved a site to spend "unlimited USDT" for an airdrop and forgot. If that contract is hacked, the attacker can drain your current USDT.'}
+                    </p>
+                    <p className="text-lg">
+                      {language === 'chinese'
+                        ? '建議養成習慣（例如每月一次）連上 Revoke.cash，找出「不明或已不用的平台授權」，點擊 Revoke 把鑰匙收回。'
+                        : 'Best practice: once a month, connect your wallet to Revoke.cash, find unknown or unused approvals, and click Revoke to take your keys back.'}
+                    </p>
+                    <p className="text-base mt-3 text-slate-400">
+                      {language === 'chinese' ? '官方網站： ' : 'Official site: '}
+                      <a 
+                        href="https://revoke.cash/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 hover:text-cyan-300 underline"
+                      >
+                        https://revoke.cash/
+                      </a>
+                    </p>
+                  </section>
+                </div>
+              ) : (
+                // 顯示圖片
+                <img
+                  src={items[selectedItem].images[language]?.[currentImageIndex] || items[selectedItem].images.chinese[currentImageIndex]}
+                  alt={`${items[selectedItem].name} - Page ${currentImageIndex + 1}`}
+                  className="w-full h-auto max-h-[75vh] object-contain"
+                  style={{ imageRendering: 'pixelated' }}
+                />
               )}
-              <motion.button
-                onClick={handleStartChallenge}
-                disabled={selectedChallengeIndex === null}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+            </div>
+            
+            {/* 導航按鈕 - 位置放低避免擋住圖片 */}
+            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 flex gap-4 items-center z-10">
+              {/* 上一頁按鈕 */}
+              <button
+                onClick={handlePrevImage}
+                className="pixel-button"
                 style={{
-                  ...pixelButtonStyle,
-                  backgroundColor: selectedChallengeIndex !== null ? '#22d3ee' : '#6b7280',
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  transition: 'all 0.3s ease',
+                  backgroundColor: '#374151',
                   color: '#ffffff',
-                  padding: '16px 32px',
-                  fontSize: '20px',
-                  cursor: selectedChallengeIndex !== null ? 'pointer' : 'not-allowed',
-                  fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
+                  border: '2px solid #000',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontFamily: "'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
                   fontWeight: 'bold',
                   textTransform: 'uppercase',
                   letterSpacing: '2px',
-                  boxShadow: selectedChallengeIndex !== null ? '0 0 20px rgba(34, 211, 238, 0.3)' : 'none'
+                  textShadow: '2px 2px 0px #000',
+                  WebkitFontSmoothing: 'none',
+                  MozOsxFontSmoothing: 'unset'
                 }}
               >
-                {currentContent.startAdventureButton}
-              </motion.button>
+                {t.prev}
+              </button>
+              
+              {/* 頁碼指示 */}
+              <span className="px-4 py-2"
+                style={{
+                  fontFamily: "'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  color: '#ffffff',
+                  backgroundColor: '#374151',
+                  border: '2px solid #000',
+                  borderRadius: '4px',
+                  textShadow: '2px 2px 0px #000',
+                  letterSpacing: '1px'
+                }}
+              >
+                {currentImageIndex + 1} / {
+                  // 第三個道具有5頁（4張圖片 + 1頁表格）
+                  // 第五個道具有10頁（9張圖片 + 1頁文字說明）
+                  selectedItem === 2 
+                    ? 5 
+                    : selectedItem === 4
+                    ? 10
+                    : (items[selectedItem].images[language]?.length || items[selectedItem].images.chinese.length)
+                }
+              </span>
+              
+              {/* 下一頁按鈕 */}
+              <button
+                onClick={handleNextImage}
+                className="pixel-button"
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '4px',
+                  transition: 'all 0.3s ease',
+                  backgroundColor: '#374151',
+                  color: '#ffffff',
+                  border: '2px solid #000',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontFamily: "'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace",
+                  fontWeight: 'bold',
+                  textTransform: 'uppercase',
+                  letterSpacing: '2px',
+                  textShadow: '2px 2px 0px #000',
+                  WebkitFontSmoothing: 'none',
+                  MozOsxFontSmoothing: 'unset'
+                }}
+              >
+                {t.next}
+              </button>
             </div>
           </div>
         </motion.div>
       )}
 
-      {/* 標題 */}
-      <motion.div
-        initial={{ opacity: 0, y: -50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="text-center pt-8 pb-4 flex-shrink-0"
-      >
-        <h1 
-          className="text-4xl md:text-6xl font-bold text-cyan-400 mb-2 pixel-title"
-          style={{
-            textShadow: '4px 4px 0px #000, 8px 8px 0px #0f172a',
-            fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-            letterSpacing: '3px',
-            textTransform: 'uppercase'
+      {/* 授权挑战选择界面 */}
+      {showAuthorizationChallenges && (
+        <PhaseRoadmap2
+          language={language}
+          setLanguage={setLanguage}
+          onSelectChallenge={(challenge) => {
+            navigate(challenge.route, { replace: false });
+            setShowAuthorizationChallenges(false);
           }}
-        >
-          {currentContent.title}
-        </h1>
-        <p 
-          className="text-lg md:text-xl text-gray-300 pixel-text"
-          style={{ 
-            fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-            letterSpacing: '1px'
-          }}
-        >
-          {currentContent.subtitle}
-        </p>
-      </motion.div>
+          onClose={() => setShowAuthorizationChallenges(false)}
+          onOpenBackpack={() => setShowBackpack(true)}
+        />
+      )}
 
-      {/* 主要內容區域 */}
-      <div className="flex-1 flex flex-col justify-between min-h-0">
-        {/* 關卡選擇區域 */}
-        <div className="flex-1 flex items-center justify-center px-4 py-4">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="w-full max-w-6xl"
-          >
-            <div 
-              className="p-6 rounded-lg"
-              style={pixelCardStyle}
-            >
-              <h2 
-                className="text-2xl md:text-3xl font-bold text-white mb-6 text-center pixel-title"
-                style={{ 
-                  fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-                  letterSpacing: '2px',
-                  textTransform: 'uppercase'
-                }}
-              >
-                {currentContent.selectLevel}
-              </h2>
-              <div className="w-full">
-                <GooeyNav
-                  items={levels.map(level => ({
-                    label: level.name,
-                    href: '#'
-                  }))}
-                  particleCount={8}
-                  particleDistances={[60, 8]}
-                  particleR={60}
-                  initialActiveIndex={selectedLevel ? selectedLevel - 1 : -1}
-                  animationTime={400}
-                  timeVariance={200}
-                  colors={[1, 2, 3, 1, 2, 3, 1, 4]}
-                  onItemClick={(index) => handleLevelSelect(index + 1)}
-                />
-              </div>
-            </div>
-          </motion.div>
-        </div>
+      {/* 底部基石文字 - 當顯示授權挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && (
+        <footer className="absolute bottom-10 w-full text-center opacity-40 text-xs tracking-[0.5em] uppercase" style={pixelFontStyle}>
+          ✦The website information is just use for anti-phishing education. The game challenges mimic web pages and are not intended for phishing.✦
+        </footer>
+      )}
 
-        {/* 底部按鈕區域 - 確保始終可見 */}
-        <motion.div
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="flex justify-center pb-6 pt-4 flex-shrink-0"
-        >
-          {/* 開始遊戲按鈕 */}
-          <motion.button
-            onClick={handleStartGame}
-            disabled={!selectedLevel}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            style={{
-              ...pixelButtonStyle,
-              backgroundColor: selectedLevel ? '#10b981' : '#6b7280',
-              color: '#ffffff',
-              padding: '14px 28px',
-              fontSize: '16px',
-              cursor: selectedLevel ? 'pointer' : 'not-allowed',
-              fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
-              fontWeight: 'bold',
-              textTransform: 'uppercase',
-              letterSpacing: '2px'
-            }}
-          >
-            {currentContent.startAdventure}
-          </motion.button>
-        </motion.div>
-      </div>
-
-
-      {/* 像素風格 CSS */}
-      <style jsx>{`
-        @keyframes pixel-twinkle {
-          0% { opacity: 0.3; }
-          100% { opacity: 1; }
-        }
-        
-        * {
+      {/* 全局 CSS：確保像素風格渲染 [cite: 30] */}
+      <style>{`
+        .pixel-font {
+          font-family: 'Courier New', Monaco, Menlo, 'Ubuntu Mono', monospace;
           image-rendering: pixelated;
           image-rendering: -moz-crisp-edges;
           image-rendering: crisp-edges;
+        }
+        * {
+          image-rendering: pixelated;
         }
       `}</style>
     </div>
   );
 };
-
 export default GamePage;

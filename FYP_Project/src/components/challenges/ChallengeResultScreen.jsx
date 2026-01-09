@@ -15,8 +15,10 @@ import { motion } from 'framer-motion';
  * @param {string} props.failureExplanation - 失败说明文字
  * @param {string} props.successSubtitle - 成功时的副标题（默认："恭喜完成任務"）
  * @param {string} props.retryButtonText - 重试按钮文本（默认："重試"）
+ * @param {string} props.nextLevelButtonText - 下一关按钮文本（默认："下一關"）
  * @param {Array} props.checkItems - 检查项目数组 [{label: string, value: string, isCorrect: boolean, showValue: boolean, details: ReactNode}]
  * @param {Function} props.onRetry - 重试按钮点击事件（仅失败时显示）
+ * @param {Function} props.onNextLevel - 下一关按钮点击事件（成功和失败时都显示）
  * @param {Object} props.customStyles - 自定义样式
  */
 const ChallengeResultScreen = ({
@@ -29,8 +31,10 @@ const ChallengeResultScreen = ({
   failureExplanation = "請檢查以下項目：",
   successSubtitle = "恭喜完成任務",
   retryButtonText = "重試",
+  nextLevelButtonText = "下一關",
   checkItems = [],
   onRetry = null,
+  onNextLevel = null,
   customStyles = {}
 }) => {
   const themeColor = isSuccess ? '#22c55e' : '#ef4444';
@@ -80,9 +84,11 @@ const ChallengeResultScreen = ({
       className="text-center"
     >
       <div 
-        className="relative w-full h-full bg-gray-900 overflow-hidden pixel-font text-white" 
+        className="relative w-full h-full bg-gray-900 overflow-y-auto pixel-font text-white" 
         style={{ 
-          minHeight: '80vh',
+          minHeight: '100vh',
+          height: '100vh',
+          width: '100vw',
           boxShadow: 'inset 0 0 30px rgba(0,0,0,0.3)',
           ...customStyles.container
         }}
@@ -115,8 +121,26 @@ const ChallengeResultScreen = ({
               <path d="M 15% 70% Q 50% 75%, 85% 68%" fill="none" stroke="#10b981" strokeWidth="2" opacity="0.3" filter="url(#glowGreen)"/>
             </>
           ) : (
-            // 失败时的红色圆圈标注
+            // 失败时的红色圆圈标注和跑马灯效果
             <>
+              {/* 跑马灯装饰圆圈 - 与成功界面类似的动画效果 */}
+              <circle cx="20%" cy="35%" r="80" fill="none" stroke="#ef4444" strokeWidth="3" strokeDasharray="5,5" filter="url(#glow)" opacity="0.6">
+                <animate attributeName="stroke-dashoffset" from="0" to="10" dur="1s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="80%" cy="55%" r="100" fill="none" stroke="#ef4444" strokeWidth="3" strokeDasharray="5,5" filter="url(#glow)" opacity="0.5">
+                <animate attributeName="stroke-dashoffset" from="0" to="10" dur="1.5s" repeatCount="indefinite"/>
+              </circle>
+              <circle cx="90%" cy="15%" r="40" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.2"/>
+              <circle cx="10%" cy="85%" r="50" fill="none" stroke="#dc2626" strokeWidth="2" opacity="0.2"/>
+              <circle cx="85%" cy="88%" r="50" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.15"/>
+              {/* 跑马灯路径装饰 */}
+              <path d="M 10% 30% Q 50% 20%, 90% 25%" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.3" filter="url(#glow)">
+                <animate attributeName="stroke-dashoffset" from="0" to="20" dur="2s" repeatCount="indefinite"/>
+              </path>
+              <path d="M 15% 70% Q 50% 75%, 85% 68%" fill="none" stroke="#dc2626" strokeWidth="2" opacity="0.3" filter="url(#glow)">
+                <animate attributeName="stroke-dashoffset" from="0" to="20" dur="2.5s" repeatCount="indefinite"/>
+              </path>
+              {/* 原有的错误项目标注 */}
               {checkItems.map((item, index) => {
                 if (item.isCorrect) return null;
                 const yPosition = 30 + (index * 17);
@@ -148,25 +172,22 @@ const ChallengeResultScreen = ({
                   </g>
                 );
               })}
-              <circle cx="90%" cy="12%" r="40" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.2"/>
-              <circle cx="10%" cy="95%" r="30" fill="none" stroke="#f59e0b" strokeWidth="2" opacity="0.2"/>
-              <circle cx="85%" cy="88%" r="50" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.15"/>
             </>
           )}
         </svg>
 
         {/* 内容区域 */}
-        <div className="relative" style={{ zIndex: 2 }}>
+        <div className="relative" style={{ zIndex: 2, paddingTop: '30px' }}>
           {/* 关卡信息顶部 */}
           {title && (
-            <div className="bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800 text-white py-4 px-6 border-b-2 border-gray-700">
+            <div className="bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800 text-white py-6 px-8 border-b-2 border-gray-700">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className={`text-lg font-bold ${isSuccess ? 'text-green-400' : 'text-blue-400'}`}>
+                  <h3 className={`text-2xl font-bold ${isSuccess ? 'text-green-400' : 'text-blue-400'}`}>
                     {title}
                   </h3>
                   {description && (
-                    <p className="text-sm text-gray-300 mt-1">{description}</p>
+                    <p className="text-xl text-gray-300 mt-2">{description}</p>
                   )}
                 </div>
               </div>
@@ -175,24 +196,24 @@ const ChallengeResultScreen = ({
 
           {/* Success/Failure Banner */}
           <div 
-            className={`text-white py-6 px-6 flex items-center justify-center gap-4 border-b-4`}
+            className={`text-white py-10 px-8 flex items-center justify-center gap-6 border-b-4`}
             style={{
               backgroundColor: isSuccess ? '#16a34a' : '#dc2626',
               borderBottomColor: isSuccess ? '#15803d' : '#991b1b'
             }}
           >
-            <div className="w-10 h-10 flex items-center justify-center">
+            <div className="w-16 h-16 flex items-center justify-center">
               {isSuccess ? (
-                <PixelCheckmark size={40} color="white" />
+                <PixelCheckmark size={60} color="white" />
               ) : (
-                <PixelCross size={40} color="white" />
+                <PixelCross size={60} color="white" />
               )}
             </div>
             <div className="text-center">
-              <h2 className="text-2xl md:text-3xl font-bold mb-1">
+              <h2 className="text-4xl md:text-5xl font-bold mb-2">
                 {isSuccess ? successMessage : failureMessage}
               </h2>
-              <p className="text-sm md:text-base opacity-90">
+              <p className="text-xl md:text-2xl opacity-90">
                 {isSuccess ? successSubtitle : failureExplanation}
               </p>
             </div>
@@ -200,15 +221,22 @@ const ChallengeResultScreen = ({
 
           {/* Details Section */}
           <div 
-            className="p-8 space-y-6 flex flex-col items-center justify-center" 
-            style={{ minHeight: isSuccess ? '50vh' : 'auto' }}
+            className="p-12 space-y-10 flex flex-col items-center justify-center" 
+            style={{ 
+              minHeight: isSuccess ? '50vh' : '65vh', 
+              width: '100%', 
+              maxWidth: '1400px', 
+              margin: '0 auto',
+              padding: '3rem 2rem',
+              paddingBottom: isSuccess ? '1rem' : '3rem'
+            }}
           >
             {isSuccess ? (
               // 成功页面内容
               <>
                 {/* 大的成功图标 */}
-                <div className="mb-8">
-                  <svg width="160" height="160" viewBox="0 0 24 24" fill="none">
+                <div className="mb-12">
+                  <svg width="240" height="240" viewBox="0 0 24 24" fill="none">
                     <rect x="2" y="12" width="3" height="3" fill="#22c55e"/>
                     <rect x="5" y="15" width="3" height="3" fill="#22c55e"/>
                     <rect x="8" y="18" width="4" height="4" fill="#22c55e"/>
@@ -222,13 +250,17 @@ const ChallengeResultScreen = ({
                 {/* 成功信息卡片 */}
                 {successExplanation && (
                   <div 
-                    className="max-w-2xl w-full bg-green-900/30 border-2 border-green-500 p-8 rounded-lg" 
-                    style={{ boxShadow: '0 0 20px rgba(34, 197, 94, 0.4)' }}
+                    className="w-full bg-green-900/30 border-2 border-green-500 p-12 rounded-lg" 
+                    style={{ 
+                      boxShadow: '0 0 20px rgba(34, 197, 94, 0.4)',
+                      maxWidth: '1400px',
+                      width: '90%'
+                    }}
                   >
-                    <h3 className="text-3xl font-bold text-green-300 mb-6 text-center">
+                    <h3 className="text-5xl font-bold text-green-300 mb-8 text-center">
                       {successMessage}
                     </h3>
-                    <p className="text-lg text-gray-200 leading-relaxed text-center">
+                    <p className="text-2xl text-gray-200 leading-relaxed text-center">
                       {successExplanation}
                     </p>
                   </div>
@@ -236,19 +268,26 @@ const ChallengeResultScreen = ({
 
                 {/* 成功详情列表 */}
                 {checkItems.length > 0 && (
-                  <div className="max-w-2xl w-full space-y-3 mt-8">
+                  <div className="w-full space-y-6 mt-12" style={{ maxWidth: '1400px', width: '90%', position: 'relative', zIndex: 10 }}>
                     {checkItems.map((item, index) => (
                       <div 
                         key={index}
-                        className="flex items-center justify-between p-4 bg-green-900/30 border-2 border-green-500 rounded-lg"
-                        style={{ boxShadow: '0 0 15px rgba(34, 197, 94, 0.3)' }}
+                        className={`p-8 bg-green-900/30 border-2 border-green-500 rounded-lg ${
+                          item.details ? 'flex flex-col' : 'flex items-center justify-between'
+                        }`}
+                        style={{ boxShadow: '0 0 15px rgba(34, 197, 94, 0.3)', position: 'relative', zIndex: 10, overflow: 'visible' }}
                       >
-                        <div className="flex items-center gap-3">
-                          <PixelCheckmark size={24} color="#22c55e" />
-                          <span className="text-green-300 font-bold">{item.label}</span>
+                        <div className={`flex items-center gap-4 ${item.details ? 'mb-4' : ''}`}>
+                          <PixelCheckmark size={36} color="#22c55e" />
+                          <span className="text-green-300 font-bold text-2xl">{item.label}</span>
                         </div>
                         {item.showValue && item.value && (
-                          <span className="text-gray-300 text-sm">{item.value}</span>
+                          <span className="text-gray-300 text-xl">{item.value}</span>
+                        )}
+                        {item.details && (
+                          <div className="mt-4 w-full relative z-20" style={{ minHeight: '400px', overflow: 'visible', position: 'relative' }}>
+                            {item.details}
+                          </div>
                         )}
                       </div>
                     ))}
@@ -259,11 +298,11 @@ const ChallengeResultScreen = ({
               // 失败页面内容
               <>
                 {checkItems.length > 0 && (
-                  <div className="w-full space-y-4">
+                  <div className="w-full space-y-6" style={{ maxWidth: '1400px', width: '90%' }}>
                     {checkItems.map((item, index) => (
                       <div 
                         key={index}
-                        className={`flex items-start justify-between p-4 border-2 ${
+                        className={`flex items-start justify-between p-8 border-2 ${
                           item.isCorrect 
                             ? 'bg-green-900/30 border-green-500' 
                             : 'bg-red-900/30 border-red-500'
@@ -275,22 +314,27 @@ const ChallengeResultScreen = ({
                         }}
                       >
                         <div className="flex-1">
-                          <h3 className={`font-bold text-lg mb-2 ${
+                          <h3 className={`font-bold text-2xl mb-4 ${
                             item.isCorrect ? 'text-green-300' : 'text-red-300'
                           }`}>
                             {item.label}
                           </h3>
                           {item.details && (
-                            <div className="text-sm text-gray-300">
+                            <div className="text-xl text-gray-300">
                               {item.details}
                             </div>
                           )}
+                          {item.showValue && item.value && (
+                            <div className="text-xl text-gray-300 mt-2">
+                              {item.value}
+                            </div>
+                          )}
                         </div>
-                        <div className="w-10 h-10 flex items-center justify-center ml-4">
+                        <div className="w-16 h-16 flex items-center justify-center ml-6">
                           {item.isCorrect ? (
-                            <PixelCheckmark size={32} color="#22c55e" />
+                            <PixelCheckmark size={48} color="#22c55e" />
                           ) : (
-                            <PixelCross size={32} color="#ef4444" />
+                            <PixelCross size={48} color="#ef4444" />
                           )}
                         </div>
                       </div>
@@ -301,16 +345,49 @@ const ChallengeResultScreen = ({
             )}
           </div>
 
-          {/* Action Button - 仅失败时显示 */}
-          {!isSuccess && onRetry && (
-            <div className="px-6 pb-8 pt-12 flex justify-center">
+          {/* Action Button - 下一关按钮（成功和失败时都显示） */}
+          {onNextLevel && (
+            <div className="px-8 pb-12 pt-16 flex justify-center">
+              <button 
+                onClick={onNextLevel}
+                className="px-16 py-6 text-white font-bold text-2xl rounded-lg border-3 transition-all transform hover:scale-110 active:scale-95"
+                style={{ 
+                  backgroundColor: isSuccess ? '#22c55e' : '#ef4444',
+                  borderColor: isSuccess ? '#86efac' : '#fca5a5',
+                  borderWidth: '4px',
+                  boxShadow: isSuccess 
+                    ? '0 0 25px rgba(34, 197, 94, 0.8), inset 0 -3px 0 rgba(0,0,0,0.3)'
+                    : '0 0 25px rgba(239, 68, 68, 0.8), inset 0 -3px 0 rgba(0,0,0,0.3)',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = isSuccess ? '#16a34a' : '#dc2626';
+                  e.currentTarget.style.boxShadow = isSuccess
+                    ? '0 0 35px rgba(34, 197, 94, 1), inset 0 -3px 0 rgba(0,0,0,0.3)'
+                    : '0 0 35px rgba(239, 68, 68, 1), inset 0 -3px 0 rgba(0,0,0,0.3)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = isSuccess ? '#22c55e' : '#ef4444';
+                  e.currentTarget.style.boxShadow = isSuccess
+                    ? '0 0 25px rgba(34, 197, 94, 0.8), inset 0 -3px 0 rgba(0,0,0,0.3)'
+                    : '0 0 25px rgba(239, 68, 68, 0.8), inset 0 -3px 0 rgba(0,0,0,0.3)';
+                }}
+              >
+                {nextLevelButtonText}
+              </button>
+            </div>
+          )}
+          
+          {/* 重试按钮 - 仅失败时显示（如果没有下一关按钮） */}
+          {!isSuccess && onRetry && !onNextLevel && (
+            <div className="px-8 pb-12 pt-16 flex justify-center">
               <button 
                 onClick={onRetry}
-                className="px-12 py-4 text-white font-bold text-lg rounded-lg border-3 transition-all transform hover:scale-110 active:scale-95"
+                className="px-16 py-6 text-white font-bold text-2xl rounded-lg border-3 transition-all transform hover:scale-110 active:scale-95"
                 style={{ 
                   backgroundColor: '#ef4444',
                   borderColor: '#fca5a5',
-                  borderWidth: '3px',
+                  borderWidth: '4px',
                   boxShadow: '0 0 25px rgba(239, 68, 68, 0.8), inset 0 -3px 0 rgba(0,0,0,0.3)',
                   textShadow: '0 2px 4px rgba(0,0,0,0.5)'
                 }}

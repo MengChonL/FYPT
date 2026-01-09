@@ -52,7 +52,7 @@ const Folder = ({ size = 2, color = "#5227FF", className = "" }) => {
         />
       </svg>
       
-      <style jsx>{`
+      <style>{`
         @keyframes folderFloat {
           0%, 100% {
             transform: translateY(0px) rotate(0deg);
