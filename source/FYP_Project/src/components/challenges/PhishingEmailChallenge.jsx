@@ -7,7 +7,7 @@ import ChallengeResultScreen from './ChallengeResultScreen';
 import PhaseRoadmap from '../PhaseRoadmap';
 
 // === 1. 圖片引入 ===
-import GoogleFavicon from '../../assets/Google_"G"_logo.png'; 
+import GoogleFavicon from '../../assets/Google__G__logo.png';
 import DiscordFavicon from '../../assets/Discordicon.png';
 import XFavicon from '../../assets/Xicon.png';
 import GoogleFullLogo from '../../assets/Google_logo.png'; 
