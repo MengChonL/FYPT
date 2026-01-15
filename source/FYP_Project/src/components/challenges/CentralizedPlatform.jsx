@@ -348,112 +348,189 @@ const CentralizedPlatform = ({ config }) => {
     },
   ];
 
-  // 釣魚手法解析（結果頁用）
+  // 釣魚手法分類（6種類型）
+  const phishingCategoryTypes = {
+    keywordInsertion: {
+      zh: '插入功能詞',
+      en: 'Keyword Insertion',
+      zhDesc: '在域名中插入 -login、-support、-verify、-secure 等功能詞，偽裝成官方功能頁面。',
+      enDesc: 'Inserts functional keywords like -login, -support, -verify, -secure into the domain to mimic official function pages.'
+    },
+    typosquatting: {
+      zh: '混淆拼寫',
+      en: 'Typosquatting',
+      zhDesc: '用錯字或類似字母代替，或者少了一些字，誘導輸入錯誤流量。',
+      enDesc: 'Uses misspellings or similar letters, or omits characters to capture typo traffic.'
+    },
+    hyphenSquatting: {
+      zh: '添加連接符',
+      en: 'Hyphen Squatting',
+      zhDesc: '在品牌名稱中插入連字符（-），造成視覺混淆。',
+      enDesc: 'Inserts hyphens (-) within brand names to cause visual confusion.'
+    },
+    nonStandardTLD: {
+      zh: '使用非頂級域名',
+      en: 'Non-Standard TLD',
+      zhDesc: '使用 .xyz、.app、.exchange、.org、.net 等非官方使用的頂級域名，而非 .com 或 .io。',
+      enDesc: 'Uses non-standard TLDs like .xyz, .app, .exchange, .org, .net instead of official .com or .io.'
+    },
+    subdomainSpoofing: {
+      zh: '子域名欺騙',
+      en: 'Subdomain Spoofing',
+      zhDesc: '使用子域名偽裝，例如 brand.com.fake-site.ru，真正的域名是後面的部分。',
+      enDesc: 'Uses subdomain spoofing, e.g., brand.com.fake-site.ru, where the real domain is the latter part.'
+    },
+    urlShortening: {
+      zh: '短網址工具',
+      en: 'URL Shortening',
+      zhDesc: '使用 bit.ly、tinyurl.com 等短網址服務，隱藏真實域名，令用戶無法查閱完整域名。',
+      enDesc: 'Uses URL shortening services like bit.ly, tinyurl.com to hide the real domain, preventing users from viewing the full domain.'
+    }
+  };
+
+  // 釣魚手法解析（結果頁用）- 按6種類型分類
   const phishingReasons = [
-    {
-      name: 'https://www.biance.com',
-      zhMethod: '拼寫錯誤（Typosquatting）',
-      enMethod: 'Typosquatting (misspelling)',
-      zhDesc: '將 "binance" 拼錯成 "biance"（缺少 n），誘導輸入錯誤流量。',
-      enDesc: 'Misspells "binance" as "biance" (missing the “n”), capturing typo traffic.'
-    },
-    {
-      name: 'https://www.cainbase.com',
-      zhMethod: '拼寫錯誤（Typosquatting）',
-      enMethod: 'Typosquatting (misspelling)',
-      zhDesc: '將 "coinbase" 寫成 "cainbase"，常見快速打字錯誤。',
-      enDesc: 'Spells "coinbase" as "cainbase", a common fast-typing mistake.'
-    },
+    // 1. 插入功能詞
     {
       name: 'https://www.binance-login.com',
-      zhMethod: '插入功能詞（Keyword Insertion）',
-      enMethod: 'Keyword insertion',
+      category: 'keywordInsertion',
+      zhMethod: '插入功能詞',
+      enMethod: 'Keyword Insertion',
       zhDesc: '在品牌後加入 "login"，偽裝官方登入頁。',
       enDesc: 'Adds "login" after the brand to mimic an official sign-in page.'
     },
     {
       name: 'https://binance-secure.org',
-      zhMethod: '插入安全詞 + 非官方 TLD',
-      enMethod: 'Security keyword + off-brand TLD',
-      zhDesc: '用 "secure" 提升可信度，但 .org 非官方使用的 .com。',
-      enDesc: 'Uses "secure" to boost trust; TLD .org is off-brand vs official .com.'
+      category: 'keywordInsertion',
+      zhMethod: '插入功能詞',
+      enMethod: 'Keyword Insertion',
+      zhDesc: '插入 "secure" 功能詞，同時使用非官方 TLD (.org)。',
+      enDesc: 'Inserts "secure" keyword while using non-official TLD (.org).'
     },
     {
       name: 'https://www.coinbase-support.net',
-      zhMethod: '插入客服詞 + 非官方 TLD',
-      enMethod: 'Support keyword + off-brand TLD',
-      zhDesc: '以 "support" 引導求助，但 .net 非官方域。',
-      enDesc: 'Uses "support" to lure users; .net is not an official Coinbase domain.'
+      category: 'keywordInsertion',
+      zhMethod: '插入功能詞',
+      enMethod: 'Keyword Insertion',
+      zhDesc: '插入 "support" 功能詞，同時使用非官方 TLD (.net)。',
+      enDesc: 'Inserts "support" keyword while using non-official TLD (.net).'
     },
     {
       name: 'https://kraken-verify.com',
-      zhMethod: '插入驗證詞 + 混淆主體',
-      enMethod: 'Verification keyword spoof',
-      zhDesc: 'Kraken 官方不使用 verify 子品牌，此類為典型仿冒。',
-      enDesc: 'Kraken doesn’t use "verify" sub-branding; classic spoof.'
+      category: 'keywordInsertion',
+      zhMethod: '插入功能詞',
+      enMethod: 'Keyword Insertion',
+      zhDesc: '插入 "verify" 功能詞，Kraken 官方不使用此類子品牌。',
+      enDesc: 'Inserts "verify" keyword; Kraken does not use such sub-brands officially.'
+    },
+    // 2. 混淆拼寫
+    {
+      name: 'https://www.biance.com',
+      category: 'typosquatting',
+      zhMethod: '混淆拼寫',
+      enMethod: 'Typosquatting',
+      zhDesc: '將 "binance" 拼錯成 "biance"（缺少 n），誘導輸入錯誤流量。',
+      enDesc: 'Misspells "binance" as "biance" (missing the "n"), capturing typo traffic.'
     },
     {
+      name: 'https://www.cainbase.com',
+      category: 'typosquatting',
+      zhMethod: '混淆拼寫',
+      enMethod: 'Typosquatting',
+      zhDesc: '將 "coinbase" 寫成 "cainbase"（oi 變成 ai），常見快速打字錯誤。',
+      enDesc: 'Spells "coinbase" as "cainbase" (oi becomes ai), a common fast-typing mistake.'
+    },
+    // 3. 添加連接符
+    {
+      name: 'https://www.coin-base.com',
+      category: 'hyphenSquatting',
+      zhMethod: '添加連接符',
+      enMethod: 'Hyphen Squatting',
+      zhDesc: '在品牌 "coinbase" 中插入連字符，變成 "coin-base"，造成混淆。',
+      enDesc: 'Inserts a hyphen within "coinbase" to become "coin-base", causing confusion.'
+    },
+    // 4. 使用非頂級域名
+    {
       name: 'https://www.binance.co',
-      zhMethod: '相似頂級域（TLD 假冒）',
-      enMethod: 'TLD impersonation',
-      zhDesc: '.co 與官方 .com 相近，常被用來仿冒。',
-      enDesc: '.co looks close to the official .com and is commonly abused.'
+      category: 'nonStandardTLD',
+      zhMethod: '使用非頂級域名',
+      enMethod: 'Non-Standard TLD',
+      zhDesc: '使用 .co 而非官方 .com，視覺上相近但非官方域名。',
+      enDesc: 'Uses .co instead of official .com, visually similar but not the official domain.'
     },
     {
       name: 'https://www.coinbase.app',
-      zhMethod: '濫用 gTLD',
-      enMethod: 'Abusing alternate gTLD',
-      zhDesc: '.app 雖合法，但並非官方使用，屬釣魚變體。',
-      enDesc: '.app is legal but not used by Coinbase; a phishing variant.'
+      category: 'nonStandardTLD',
+      zhMethod: '使用非頂級域名',
+      enMethod: 'Non-Standard TLD',
+      zhDesc: '使用 .app 而非官方 .com，雖合法但非 Coinbase 官方使用。',
+      enDesc: 'Uses .app instead of official .com; legal but not used by Coinbase officially.'
     },
     {
       name: 'https://bybit.exchange',
-      zhMethod: '行業相關 TLD 混淆',
-      enMethod: 'Industry-lookalike TLD',
-      zhDesc: '.exchange 看似合理，但 Bybit 官方僅用 bybit.com。',
-      enDesc: '.exchange seems relevant, but Bybit only uses bybit.com.'
+      category: 'nonStandardTLD',
+      zhMethod: '使用非頂級域名',
+      enMethod: 'Non-Standard TLD',
+      zhDesc: '使用 .exchange 而非官方 .com，看似合理但 Bybit 官方僅用 bybit.com。',
+      enDesc: 'Uses .exchange instead of official .com; seems relevant but Bybit only uses bybit.com.'
     },
     {
+      name: 'https://binance-secure.org',
+      category: 'nonStandardTLD',
+      zhMethod: '使用非頂級域名',
+      enMethod: 'Non-Standard TLD',
+      zhDesc: '使用 .org 而非官方 .com，同時插入功能詞 "secure"。',
+      enDesc: 'Uses .org instead of official .com, while inserting "secure" keyword.'
+    },
+    {
+      name: 'https://www.coinbase-support.net',
+      category: 'nonStandardTLD',
+      zhMethod: '使用非頂級域名',
+      enMethod: 'Non-Standard TLD',
+      zhDesc: '使用 .net 而非官方 .com，同時插入功能詞 "support"。',
+      enDesc: 'Uses .net instead of official .com, while inserting "support" keyword.'
+    },
+    // 5. 子域名欺騙
+    {
       name: 'https://binance.com.security-check.ru',
-      zhMethod: '子網域欺騙（Subdomain Spoofing）',
-      enMethod: 'Subdomain spoofing',
-      zhDesc: '主域其實是 security-check.ru，並非 binance.com。',
-      enDesc: 'Real registrable domain is security-check.ru, not binance.com.'
+      category: 'subdomainSpoofing',
+      zhMethod: '子域名欺騙',
+      enMethod: 'Subdomain Spoofing',
+      zhDesc: '真正的域名是 security-check.ru，"binance.com" 只是子域名，偽裝成官方域名。',
+      enDesc: 'Real domain is security-check.ru; "binance.com" is just a subdomain, disguising as official domain.'
     },
     {
       name: 'https://coinbase.com.login.verify-scamsite.com',
-      zhMethod: '多層子網域欺騙',
-      enMethod: 'Nested subdomain spoofing',
-      zhDesc: '長串子網域模擬路徑，實際主域是 verify-scamsite.com。',
-      enDesc: 'Long subdomains mimic a path; real domain is verify-scamsite.com.'
-    },
-    {
-      name: 'http://bit.ly/3XxxxYz',
-      zhMethod: '短網址隱藏',
-      enMethod: 'URL shortening obfuscation',
-      zhDesc: '短網址無法直觀看目的地，常用於引導至釣魚頁。',
-      enDesc: 'Short link hides the destination; often redirects to phishing.'
-    },
-    {
-      name: 'http://tinyurl.com/binance-reward',
-      zhMethod: '短網址 + 誘餌詞',
-      enMethod: 'Short link + bait keyword',
-      zhDesc: '以獎勵字樣誘餌，實際可能導向惡意站點。',
-      enDesc: 'Uses "reward" bait; likely redirects to malicious content.'
+      category: 'subdomainSpoofing',
+      zhMethod: '子域名欺騙',
+      enMethod: 'Subdomain Spoofing',
+      zhDesc: '真正的域名是 verify-scamsite.com，前面的 "coinbase.com.login" 只是多層子域名。',
+      enDesc: 'Real domain is verify-scamsite.com; "coinbase.com.login" is just nested subdomains.'
     },
     {
       name: 'https://Binance.com.security-update.page',
-      zhMethod: '子網域欺騙 + 混合大小寫',
-      enMethod: 'Subdomain spoofing + case mixing',
-      zhDesc: '真正主域為 security-update.page，"Binance.com" 只是子網域片段。',
-      enDesc: 'Real domain is security-update.page; "Binance.com" is just a subdomain fragment.'
+      category: 'subdomainSpoofing',
+      zhMethod: '子域名欺騙',
+      enMethod: 'Subdomain Spoofing',
+      zhDesc: '真正的域名是 security-update.page，"Binance.com" 只是子域名片段，同時使用混合大小寫混淆。',
+      enDesc: 'Real domain is security-update.page; "Binance.com" is just a subdomain fragment, using mixed case to confuse.'
+    },
+    // 6. 短網址工具
+    {
+      name: 'http://bit.ly/3XxxxYz',
+      category: 'urlShortening',
+      zhMethod: '短網址工具',
+      enMethod: 'URL Shortening',
+      zhDesc: '使用 bit.ly 短網址服務，隱藏真實域名，用戶無法直接查看完整域名。',
+      enDesc: 'Uses bit.ly URL shortening service to hide the real domain, preventing users from viewing the full domain.'
     },
     {
-      name: 'https://www.coin-base.com',
-      zhMethod: '插入連字符（Hyphen Squatting）',
-      enMethod: 'Hyphen squatting',
-      zhDesc: '在品牌中插入連字號，造成混淆。',
-      enDesc: 'Inserts a hyphen inside the brand to cause confusion.'
+      name: 'http://tinyurl.com/binance-reward',
+      category: 'urlShortening',
+      zhMethod: '短網址工具',
+      enMethod: 'URL Shortening',
+      zhDesc: '使用 tinyurl.com 短網址服務，並以 "reward" 誘餌詞吸引點擊，隱藏真實域名。',
+      enDesc: 'Uses tinyurl.com URL shortening service with "reward" bait keyword to attract clicks, hiding the real domain.'
     },
   ];
 
@@ -681,6 +758,21 @@ const CentralizedPlatform = ({ config }) => {
     setDraggedItem(null);
   };
 
+  // 輔助函數：查找域名的釣魚類型
+  const findPhishingCategory = (domainName) => {
+    const reason = phishingReasons.find(r => r.name === domainName);
+    if (reason) {
+      return {
+        category: reason.category,
+        zhMethod: reason.zhMethod,
+        enMethod: reason.enMethod,
+        zhDesc: reason.zhDesc,
+        enDesc: reason.enDesc
+      };
+    }
+    return null;
+  };
+
   const checkResult = () => {
     const errors = [];
 
@@ -688,12 +780,18 @@ const CentralizedPlatform = ({ config }) => {
     if (items.length > 0) {
       items.forEach(i => {
         if (stage === 1) {
+          const phishingInfo = findPhishingCategory(i.name);
           errors.push({
-        name: i.name || i.content,
-        reasonZh: '尚未完成分類',
+            name: i.name || i.content,
+            reasonZh: '尚未完成分類',
             reasonEn: 'Not categorized',
             explanationZh: null,
-            explanationEn: null
+            explanationEn: null,
+            phishingCategory: phishingInfo?.category || null,
+            phishingMethodZh: phishingInfo?.zhMethod || null,
+            phishingMethodEn: phishingInfo?.enMethod || null,
+            phishingDescZh: phishingInfo?.zhDesc || null,
+            phishingDescEn: phishingInfo?.enDesc || null
           });
         } else {
           // Stage 2: 使用詳細說明
@@ -714,12 +812,18 @@ const CentralizedPlatform = ({ config }) => {
     phishingBox.forEach(i => {
       if (i.type !== 'phishing') {
         if (stage === 1) {
-        errors.push({
-          name: i.name || i.content,
-          reasonZh: '應標記為正規平台/特徵',
+          const phishingInfo = findPhishingCategory(i.name);
+          errors.push({
+            name: i.name || i.content,
+            reasonZh: '應標記為正規平台/特徵',
             reasonEn: 'Should be marked as legit',
             explanationZh: null,
-            explanationEn: null
+            explanationEn: null,
+            phishingCategory: phishingInfo?.category || null,
+            phishingMethodZh: phishingInfo?.zhMethod || null,
+            phishingMethodEn: phishingInfo?.enMethod || null,
+            phishingDescZh: phishingInfo?.zhDesc || null,
+            phishingDescEn: phishingInfo?.enDesc || null
           });
         } else {
           // Stage 2: 使用詳細說明
@@ -738,12 +842,18 @@ const CentralizedPlatform = ({ config }) => {
     legitBox.forEach(i => {
       if (i.type !== 'legit') {
         if (stage === 1) {
-        errors.push({
-          name: i.name || i.content,
-          reasonZh: '應標記為釣魚/可疑',
+          const phishingInfo = findPhishingCategory(i.name);
+          errors.push({
+            name: i.name || i.content,
+            reasonZh: '應標記為釣魚/可疑',
             reasonEn: 'Should be marked as phishing',
             explanationZh: null,
-            explanationEn: null
+            explanationEn: null,
+            phishingCategory: phishingInfo?.category || null,
+            phishingMethodZh: phishingInfo?.zhMethod || null,
+            phishingMethodEn: phishingInfo?.enMethod || null,
+            phishingDescZh: phishingInfo?.zhDesc || null,
+            phishingDescEn: phishingInfo?.enDesc || null
           });
         } else {
           // Stage 2: 使用詳細說明
@@ -829,15 +939,92 @@ const CentralizedPlatform = ({ config }) => {
 
   // 結果頁用的解析清單
   const resultCheckItems = useMemo(() => {
-    if (isCorrect) {
+    // 辅助函数：查找域名的钓鱼类型（在 useMemo 内部定义）
+    const findPhishingCategoryLocal = (domainName) => {
+      const reason = phishingReasons.find(r => r.name === domainName);
+      if (reason) {
+        return {
+          category: reason.category,
+          zhMethod: reason.zhMethod,
+          enMethod: reason.enMethod,
+          zhDesc: reason.zhDesc,
+          enDesc: reason.enDesc
+        };
+      }
+      return null;
+    };
+
+    if (isCorrect && stage === 1) {
+      // 第一阶段成功时，显示所有正确分类的钓鱼域名及其类型
+      // 从 phishingBox 中获取所有正确分类的钓鱼域名
+      const correctPhishingDomains = phishingBox
+        .filter(item => item.type === 'phishing')
+        .map(item => {
+          const phishingInfo = findPhishingCategoryLocal(item.name);
+          return {
+            name: item.name,
+            ...phishingInfo
+          };
+        })
+        .filter(item => item.category); // 只显示有分类信息的域名
+      
+      if (correctPhishingDomains.length > 0) {
+        return correctPhishingDomains.map((item, index) => {
+          const categoryInfo = phishingCategoryTypes[item.category];
+          return {
+            label: `${index + 1}. ${item.name}`,
+            value: language === 'chinese' ? item.zhMethod : item.enMethod,
+            isCorrect: true,
+            showValue: true,
+            details: (
+              <div className="mt-2 space-y-2">
+                <p className="text-sm text-gray-300">
+                  <span className="font-semibold">{language === 'chinese' ? '釣魚類型：' : 'Phishing Type: '}</span>
+                  {language === 'chinese' ? item.zhMethod : item.enMethod}
+                </p>
+                <p className="text-sm text-gray-300">
+                  <span className="font-semibold">{language === 'chinese' ? '說明：' : 'Description: '}</span>
+                  {language === 'chinese' ? item.zhDesc : item.enDesc}
+                </p>
+                {categoryInfo && (
+                  <p className="text-xs text-gray-400 mt-2 italic">
+                    {language === 'chinese' ? categoryInfo.zhDesc : categoryInfo.enDesc}
+                  </p>
+                )}
+              </div>
+            )
+          };
+        });
+      }
       return []; // Success message handled by subtitle
     }
+    
     return errorItems.map((item, index) => {
       // 在第二阶段，如果有详细说明，将其添加到 value 中
       let value = language === 'chinese' ? item.reasonZh : item.reasonEn;
       let details = null;
       
-      if (stage === 2 && item.explanationZh && item.explanationEn) {
+      if (stage === 1 && item.phishingCategory) {
+        // 第一阶段：显示钓鱼类型分类
+        const categoryInfo = phishingCategoryTypes[item.phishingCategory];
+        details = (
+          <div className="mt-2 space-y-2">
+            <p className="text-sm text-gray-300">
+              <span className="font-semibold">{language === 'chinese' ? '釣魚類型：' : 'Phishing Type: '}</span>
+              {language === 'chinese' ? item.phishingMethodZh : item.phishingMethodEn}
+            </p>
+            <p className="text-sm text-gray-300">
+              <span className="font-semibold">{language === 'chinese' ? '說明：' : 'Description: '}</span>
+              {language === 'chinese' ? item.phishingDescZh : item.phishingDescEn}
+            </p>
+            {categoryInfo && (
+              <p className="text-xs text-gray-400 mt-2 italic">
+                {language === 'chinese' ? categoryInfo.zhDesc : categoryInfo.enDesc}
+              </p>
+            )}
+          </div>
+        );
+      } else if (stage === 2 && item.explanationZh && item.explanationEn) {
         // 第二阶段：将详细说明作为 details
         details = language === 'chinese' ? item.explanationZh : item.explanationEn;
       }
@@ -850,12 +1037,12 @@ const CentralizedPlatform = ({ config }) => {
       return {
         label: `${index + 1}. ${displayName}`,
         value: value,
-        isCorrect: false,
+        isCorrect: item.isCorrect || false,
         showValue: true,
         details: details
       };
     });
-  }, [isCorrect, errorItems, language, stage]);
+  }, [isCorrect, errorItems, language, stage, phishingCategoryTypes, phishingBox, phishingReasons]);
 
   // Stage 3 成功时的 checkItems（包含图片轮播）
   const stage3SuccessCheckItems = useMemo(() => {

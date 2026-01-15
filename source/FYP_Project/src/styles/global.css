@@ -63,4 +63,50 @@
     border-bottom: 1px solid rgba(0, 0, 0, 0.1);
   }
   
-  /* ... (其他 CSS 樣式保持不變，從之前的完整 CSS 中複製) */
+  /* Web3 Danger Auth demo 專用樣式 */
+  .cursor-pen {
+    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>')
+        0 24,
+      crosshair;
+  }
+
+  .found-highlight {
+    position: relative;
+  }
+
+  .found-highlight::after {
+    content: '✅ 已發現';
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: #22c55e;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    pointer-events: none;
+    z-index: 50;
+    animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+
+  .found-highlight::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 2px solid #22c55e;
+    border-radius: 8px;
+    pointer-events: none;
+    z-index: 49;
+  }
+
+  @keyframes popIn {
+    from {
+      transform: scale(0);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }

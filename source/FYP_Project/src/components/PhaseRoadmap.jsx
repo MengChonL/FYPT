@@ -141,7 +141,7 @@ const PhaseRoadmap = ({ steps, onStartLevel, language }) => {
                     <div className={`${iconColorClass} drop-shadow-[2px_2px_0px_black]`}><PixelIcon type={step.iconType} /></div>
                   </motion.button>
 
-                  <div className="mt-4 px-2 py-1 text-center text-[10px] md:text-xs font-bold bg-black/60 rounded text-gray-100 border-2 border-transparent">
+                  <div className="mt-4 px-2 py-1 text-center text-base md:text-lg font-bold bg-black/60 rounded text-gray-100 border-2 border-transparent" style={{ fontSize: '16px' }}>
                     {step.title[language]}
                   </div>
                 </div>

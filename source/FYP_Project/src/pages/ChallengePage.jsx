@@ -9,6 +9,9 @@ import CreateWalletChallenge from '../components/challenges/CreateWalletChalleng
 import FirstDepositChallenge from '../components/challenges/FirstDepositChallenge';
 import CentralizedPlatform from '../components/challenges/CentralizedPlatform';
 import Decentralizedplatform from '../components/challenges/Decentralizedplatform';
+import IdentifyMalicious from '../components/challenges/IdentifyMalicious';
+import JudgeAuth from '../components/challenges/JudgeAuth';
+import Web3DangerAuth from '../components/challenges/Web3DangerAuth';
 
 // 2. 暫時移除缺失檔案的引用 (Level 1-3, Level 2-4)
 // import ChatNFTScam from '../components/challenges/Level1-3_ChatNFTScam'; 
@@ -79,6 +82,18 @@ const ChallengePage = () => {
     // 對應 Level 1-6 (去中心化平台判別)
     case 'decentralizedPlatform':
       return <Decentralizedplatform config={config} />;
+
+    // 對應 Level 2-1 (判別惡意授權，包含兩個階段：域名判別和合約內容判別)
+    case 'maliciousAuth':
+      return <IdentifyMalicious config={config} />;
+
+    // 對應 Level 2-2 (判斷授權內容)
+    case 'judgeAuth':
+      return <JudgeAuth config={config} />;
+
+    // 對應 Level 2-3 (QuantumFi 混合詐騙實戰)
+    case 'dangerAuthWeb3':
+      return <Web3DangerAuth config={config} />;
 
     /* // 暫時註解掉缺失的關卡邏輯，防止報錯
     case 'chatNFT':

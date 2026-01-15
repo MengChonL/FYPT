@@ -508,6 +508,151 @@ export const phase1Challenges = {
         scenarioText: "You need to understand how decentralized platforms work and their security features, and learn to identify truly decentralized platforms."
       }
     }
+  },
+
+  // ============================================================
+  // Level 2-1: 拆解授權內容 (Deconstruct Malicious Authorization)
+  // ============================================================
+  'malicious-auth': {
+    id: 'malicious-auth',
+    type: 'maliciousAuth', // 對應組件: IdentifyMalicious.jsx
+    difficulty: 'medium',
+    nextLevel: 'phase2-judge-auth',
+
+    // roadmap 顯示用 meta
+    title: { chinese: '判別惡意授權', english: 'Identify Malicious Authorization' },
+    iconType: 'cex',
+    status: 'locked',
+
+    // --- 任務引導 (Mission Brief) ---
+    intro: {
+      chinese: {
+        title: "任務：拆解授權內容",
+        story: "在 Web3 去中心化平台中，授權（Authorization）是用戶與智能合約或第三方應用互動的核心機制之一。與傳統中心化服務不同，去中心化應用（dApps）通常不會直接存取用戶的私鑰，而是透過請求用戶使用錢包（如 MetaMask）對特定操作進行數位簽署，以授予臨時或有限的權限。常見的授權場景包括：允許去中心化交易所（如 Uniswap）存取特定代幣餘額以進行交易、授權借貸協議（如 Aave）使用抵押資產，或讓 NFT 市場可轉移特定資產。後面的挑戰將會逐步拆解授權內容讓你免受損失!",
+        mission: "您的目標是:拆解授權內容，了解授權機制,判別惡意授權。",
+        warning: "注意：請仔細檢查網站的域名、拼寫和結構，識別釣魚網站的特徵。",
+        btn: "開始挑戰"
+      },
+      english: {
+        title: "Mission: Deconstruct Authorization Content",
+        story: "In Web3 decentralized platforms, Authorization is one of the core mechanisms for users to interact with smart contracts or third-party applications. Unlike traditional centralized services, decentralized applications (dApps) typically do not directly access users' private keys. Instead, they request users to use wallets (such as MetaMask) to digitally sign specific operations, granting temporary or limited permissions. Common authorization scenarios include: allowing decentralized exchanges (such as Uniswap) to access specific token balances for trading, authorizing lending protocols (such as Aave) to use collateral assets, or enabling NFT markets to transfer specific assets. The following challenges will gradually break down authorization content to help you avoid losses!",
+        mission: "Your goal is to deconstruct authorization content, understand authorization mechanisms, and identify malicious authorization.",
+        warning: "Warning: Please carefully check th  e website's domain, spelling, and structure to identify phishing site characteristics.",
+        btn: "Start Challenge"
+      }
+    },
+
+    // --- 遊戲內文本內容 ---
+    content: {
+      chinese: {
+        title: "任務：判別惡意授權",
+        scenario: "授權網站判別挑戰",
+        scenarioText: "你需要透過對授權機制的了解，判斷哪些授權網站是合法的，哪些是惡意或釣魚網站。"
+      },
+      english: {
+        title: "Mission: Identify Malicious Authorization",
+        scenario: "Authorization Website Check Challenge",
+        scenarioText: "You need to understand authorization mechanisms and determine which authorization websites are legitimate and which are malicious or phishing sites."
+      }
+    }
+  },
+
+  // ============================================================
+  // Level 2-2: 判斷授權內容 (Judge Authorization Content)
+  // ============================================================
+  'judge-auth': {
+    id: 'judge-auth',
+    type: 'judgeAuth', // 對應組件: 待創建或使用現有組件
+    difficulty: 'medium',
+    nextLevel: 'phase2-danger-auth',
+
+    // roadmap 顯示用 meta
+    title: { chinese: '判斷授權內容', english: 'Judge Authorization Content' },
+    iconType: 'judge',
+    status: 'locked',
+
+    // --- 任務引導 (Mission Brief) ---
+    intro: {
+      chinese: {
+        title: "任務：判斷授權內容",
+        story: "透過上一關的策略拆解，你已經對授權內容有了一定的了解，現在需要你判斷授權內容是否合法或只是騙局。",
+        mission: "您的目標是：判斷授權內容是否合法或只是騙局。",
+        warning: "注意：每個授權內容的場景設置都不相同，需要你仔細判斷。",
+        btn: "開始挑戰"
+      },
+      english: {
+        title: "Mission: Judge Authorization Content",
+        story: "Through the previous strategy decomposition, you have a certain understanding of the authorization content. Now you need to judge whether the authorization content is legal or just a scam.",
+        mission: "Your goal is to judge whether the authorization cont  ent is legal or just a scam.",
+        warning: "Warning: Each authorization content has a differen  t scenario, you need to carefully judge.",
+        btn: "Start Challenge"
+      }
+    },
+
+    // --- 遊戲內文本內容 ---
+    content: {
+      chinese: {
+        title: "任務：判斷授權內容",
+        scenario: "授權內容判斷挑戰",
+        scenarioText: "你需要仔細閱讀授權內容，判斷每個授權請求是連接請求還是授權請求。"
+      },
+      english: {
+        title: "Mission: Judge Authorization Content",
+        scenario: "Authorization Content Judgment Challenge",
+        scenarioText: "You need to carefully read authorization content and determine whether each authorization request is a connection request or an authorization request."
+      }
+    }
+      },
+
+  // ============================================================
+  // Level 2-3: Web3 混合詐騙實戰 (QuantumFi Web Demo)
+  // ============================================================
+  'phase2-danger-auth': {
+    id: 'phase2-danger-auth',
+    type: 'dangerAuthWeb3', // 對應組件: Web3DangerAuth.jsx
+    difficulty: 'medium',
+    nextLevel: null,
+
+    // roadmap 顯示用 meta
+    title: { chinese: '混合詐騙實戰', english: 'Hybrid Scam Drill' },
+    iconType: 'judge',
+    status: 'locked',
+
+    intro: {
+      chinese: {
+        title: '任務：拆解混合式詐騙頁面',
+        story:
+          '你剛完成了授權內容判斷的挑戰，現在來到一個自稱「QuantumFi」的高收益平台。這個頁面同時混合了 Web3 去中心化關鍵字、中心化金融服務、以及各種監管與安全標籤，看起來既專業又可信，但實際上暗藏多個紅旗指標。',
+        mission:
+          '你的目標是：使用紅筆工具，在頁面上標出所有可疑或矛盾的地方，並理解每一個紅旗背後代表的風險。',
+        warning: '注意：許多詐騙網站會同時混合真實資訊與虛假承諾，請特別留意不合理的「零風險高收益」、KYC 矛盾與監管牌照描述。',
+        btn: '進入實戰演練',
+      },
+      english: {
+        title: 'Mission: Deconstruct a Hybrid Scam Page',
+        story:
+          'You have just completed the authorization judgment challenge and now arrive at a platform called "QuantumFi" claiming extremely high returns. The page mixes Web3 buzzwords, centralized financial services, and various regulatory/safety badges, making it look professional but actually hiding multiple red flags.',
+        mission:
+          'Your goal is to use the red-pen tool to mark all suspicious or contradictory elements on the page and understand the risks behind each red flag.',
+        warning:
+          'Warning: Many scam sites mix real information with fake promises. Pay special attention to unreasonable “risk-free high yields”, KYC contradictions, and how regulatory licenses are described.',
+        btn: 'Start Interactive Drill',
+      },
+    },
+
+    content: {
+      chinese: {
+        title: '任務：混合詐騙實戰',
+        scenario: 'QuantumFi 平台實戰',
+        scenarioText: '仔細瀏覽頁面內容，使用紅筆工具標出你認為可疑或矛盾的區塊。',
+      },
+      english: {
+        title: 'Mission: Hybrid Scam Drill',
+        scenario: 'QuantumFi Platform Simulation',
+        scenarioText:
+          'Carefully review the page and use the red-pen tool to highlight sections you find suspicious or contradictory.',
+      },
+    },
   }
 };
 

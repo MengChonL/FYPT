@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import FixedBackground from '../components/FixedBackground';
 import Folder from '../components/Folder';
+import PhaseRoadmap2 from '../components/PhaseRoadmap2';
 // 導入圖片
 import challenge1Img from '../assets/Challenge1.png';
 import challenge2Img from '../assets/Challenge2.png';
@@ -12,6 +13,24 @@ import item2 from '../assets/item2.jpg';
 import item3 from '../assets/item3.png';
 import item4 from '../assets/item4.png';
 import item5 from '../assets/item5.png';
+import AuthCN1 from '../assets/AuthCN1.png';
+import AuthCN2 from '../assets/AuthCN2.png';
+import AuthCN3 from '../assets/AuthCN3.png';
+import AuthCN4 from '../assets/AuthCN4.png';
+import AuthCN5 from '../assets/AuthCN5.png';
+import AuthCN6 from '../assets/AuthCN6.png';
+import AuthCN7 from '../assets/AuthCN7.png';
+import AuthCN8 from '../assets/AuthCN8.png';
+import AuthCN9 from '../assets/AuthCN9.png';
+import AuthEN1 from '../assets/AuthEN1.png';
+import AuthEN2 from '../assets/AuthEN2.png';
+import AuthEN3 from '../assets/AuthEN3.png';
+import AuthEN4 from '../assets/AuthEN4.png';
+import AuthEN5 from '../assets/AuthEN5.png';
+import AuthEN6 from '../assets/AuthEN6.png';
+import AuthEN7 from '../assets/AuthEN7.png';
+import AuthEN8 from '../assets/AuthEN8.png';
+import AuthEN9 from '../assets/AuthEN9.png';
 import item6 from '../assets/item6.png';
 // Web3錢包知識本圖片
 import walletBook1cn from '../assets/whatiswebewallet1cn.png';
@@ -50,6 +69,7 @@ const GamePage = () => {
   const [selectedItem, setSelectedItem] = useState(0);
   const [showItemViewer, setShowItemViewer] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [showAuthorizationChallenges, setShowAuthorizationChallenges] = useState(false);
 
   // 道具數據
   const items = [
@@ -118,27 +138,22 @@ const GamePage = () => {
       }
     },
     { 
-      name: '驗證令牌', 
-      nameEn: 'Verification Token',
-      description: '自動驗證交易合法性', 
-      descriptionEn: 'Auto-verifies transaction legitimacy',
+      name: '授權指南', 
+      nameEn: 'Authorization Guide',
+      description: '學習如何辨識與管理 Web3 授權，避免惡意無限授權攻擊', 
+      descriptionEn: 'Learn how to read and manage Web3 approvals to avoid malicious unlimited approvals',
       rarity: '史詩', 
       rarityEn: 'Epic',
       type: '輔助道具', 
       typeEn: 'Support Item',
-      image: item5 
+      image: item5,
+      usable: true,
+      images: {
+        chinese: [AuthCN1, AuthCN2, AuthCN3, AuthCN4, AuthCN5, AuthCN6, AuthCN7, AuthCN8, AuthCN9],
+        english: [AuthEN1, AuthEN2, AuthEN3, AuthEN4, AuthEN5, AuthEN6, AuthEN7, AuthEN8, AuthEN9],
+      }
     },
-    { 
-      name: '緊急傳送門', 
-      nameEn: 'Emergency Portal',
-      description: '危險時刻快速退出', 
-      descriptionEn: 'Quick escape in danger',
-      rarity: '傳說', 
-      rarityEn: 'Legendary',
-      type: '逃脫道具', 
-      typeEn: 'Escape Item',
-      image: item6 
-    }
+    // 第 6 格改為空位，不再放入道具（顯示為 Empty）
   ];
 
   // 根據 FYP 報告定義的教學目標 [cite: 15, 23, 28]
@@ -193,8 +208,11 @@ const GamePage = () => {
     const item = items[selectedItem];
     if (item?.images) {
       const images = item.images[language] || item.images.chinese;
-      // 第三個道具有5頁（4張圖片 + 1頁表格）
-      const maxPages = selectedItem === 2 ? 5 : images.length;
+      // 第 3 個道具有 5 頁（4 張圖片 + 1 頁表格）
+      // 第 5 個道具有 10 頁（9 張圖片 + 1 頁文字說明）
+      let maxPages = images.length;
+      if (selectedItem === 2) maxPages = 5;
+      if (selectedItem === 4) maxPages = 10;
       setCurrentImageIndex((prev) => (prev + 1) % maxPages);
     }
   };
@@ -203,8 +221,9 @@ const GamePage = () => {
     const item = items[selectedItem];
     if (item?.images) {
       const images = item.images[language] || item.images.chinese;
-      // 第三個道具有5頁（4張圖片 + 1頁表格）
-      const maxPages = selectedItem === 2 ? 5 : images.length;
+      let maxPages = images.length;
+      if (selectedItem === 2) maxPages = 5;
+      if (selectedItem === 4) maxPages = 10;
       setCurrentImageIndex((prev) => (prev - 1 + maxPages) % maxPages);
     }
   };
@@ -228,8 +247,9 @@ const GamePage = () => {
       {/* 動態粒子背景 */}
       <FixedBackground />
 
-      {/* 頂部導航：語言切換與背包 */}
-      <div className="absolute top-0 left-0 w-full flex justify-between items-center p-10 z-20">
+      {/* 頂部導航：語言切換與背包 - 當顯示授權挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && (
+        <div className="absolute top-0 left-0 w-full flex justify-between items-center p-10 z-[60]">
         <div className="flex gap-8 text-base tracking-widest">
           <span 
             onClick={() => setLanguage('chinese')}
@@ -263,8 +283,10 @@ const GamePage = () => {
           <span className="group-hover:opacity-80 uppercase">{t.backpack}</span>
         </div>
       </div>
+      )}
 
-      {/* 主內容區：標題與大關卡選擇 [cite: 34, 42] */}
+      {/* 主內容區：標題與大關卡選擇 [cite: 34, 42] - 當顯示授權挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && (
       <main className="flex flex-col items-center justify-center z-10 w-full">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
@@ -326,7 +348,7 @@ const GamePage = () => {
               transition: { duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }
             }}
             className="cursor-pointer"
-            onClick={() => navigate('/challenge/phase1/phase1-5', { replace: false })}
+            onClick={() => setShowAuthorizationChallenges(true)}
           >
             <img 
               src={challenge2Img} 
@@ -337,6 +359,7 @@ const GamePage = () => {
           </motion.div>
         </div>
       </main>
+      )}
 
       {/* 背包界面 - 居中顯示 */}
       {showBackpack && (
@@ -493,7 +516,7 @@ const GamePage = () => {
                     transform: selectedItem === index ? 'scale(1.05)' : 'scale(1)'
                   }}
                 >
-                  {index < 6 ? (
+                  {index < 5 ? (
                     <img
                       src={items[index]?.image}
                       alt={items[index]?.name}
@@ -512,8 +535,8 @@ const GamePage = () => {
               fontFamily: 'Courier New, Monaco, Menlo, Ubuntu Mono, monospace',
               lineHeight: '1.4'
             }}>
-              <p>{t.items}: 6/10</p>
-              <p>{t.emptySlots}: 4</p>
+              <p>{t.items}: 5/10</p>
+              <p>{t.emptySlots}: 5</p>
             </div>
           </div>
         </motion.div>
@@ -560,9 +583,9 @@ const GamePage = () => {
               {t.close}
             </button>
 
-            {/* 圖片顯示或表格顯示 */}
+            {/* 圖片顯示或表格 / 文字顯示 */}
             <div className="relative bg-gray-900 rounded-lg overflow-hidden border-4 border-black shadow-2xl">
-              {/* 檢查是否是第三個道具的第五頁（索引4） */}
+              {/* 第 3 個道具第 5 頁：監管機構表格 */}
               {selectedItem === 2 && currentImageIndex === 4 ? (
                 // 顯示監管機構表格
                 <div className="p-8 text-white" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
@@ -666,6 +689,78 @@ const GamePage = () => {
                     </table>
                   </div>
                 </div>
+              ) : selectedItem === 4 && currentImageIndex === 9 ? (
+                // 第 5 個道具第 10 頁：Pocket Universe & Revoke.cash 文字說明
+                <div className="p-8 text-white text-left space-y-6" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                  <section>
+                    <h2 className="text-4xl font-bold mb-4 text-cyan-400" style={pixelFontStyle}>
+                      {language === 'chinese' ? '1. Pocket Universe（口袋宇宙）' : '1. Pocket Universe'}
+                    </h2>
+                    <p className="text-lg mb-2">
+                      {language === 'chinese'
+                        ? '角色設定：你的隨身保鑣／交易翻譯官。這是一個免費的瀏覽器擴充插件，像一道防火牆擋在你的錢包（例如 MetaMask）前面。'
+                        : 'Role: your on‑chain bodyguard / transaction translator. It is a free browser extension that sits in front of your wallet (e.g. MetaMask) like a firewall.'}
+                    </p>
+                    <p className="text-lg mb-2">
+                      {language === 'chinese'
+                        ? '當你要簽名時，它會先模擬結果，用「人話」告訴你這筆交易會發生什麼事，例如：'
+                        : 'Before you sign, it simulates the result and explains in plain language what will happen, for example:'}
+                    </p>
+                    <p className="text-lg italic mb-2 text-red-300">
+                      {language === 'chinese'
+                        ? '「⚠️ 如果你簽了這筆，你的 Bored Ape NFT 會被轉走，你將獲得 0 元。」'
+                        : '"⚠️ If you sign this, your Bored Ape NFT will be transferred out and you will receive 0 ETH."'}
+                    </p>
+                    <p className="text-lg">
+                      {language === 'chinese'
+                        ? '它能把像 SetApprovalForAll 這類的授權陷阱轉成紅色警報，還提供最高約 2000 美元的防詐保險（針對特定情境）。'
+                        : 'It can convert tricks like SetApprovalForAll into clear red alerts, and even offers up to around $2,000 of coverage for specific scam scenarios.'}
+                    </p>
+                    <p className="text-base mt-3 text-slate-400">
+                      {language === 'chinese' ? '官方網站： ' : 'Official site: '}
+                      <a 
+                        href="https://pocketuniverse.app/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 hover:text-cyan-300 underline"
+                      >
+                        https://pocketuniverse.app/
+                      </a>
+                    </p>
+                  </section>
+
+                  <section>
+                    <h2 className="text-4xl font-bold mb-4 text-cyan-400" style={pixelFontStyle}>
+                      {language === 'chinese' ? '2. Revoke.cash' : '2. Revoke.cash'}
+                    </h2>
+                    <p className="text-lg mb-2">
+                      {language === 'chinese'
+                        ? '角色設定：你的資產管家／授權大掃除工具。它是一個網站儀表板，用來檢查並撤銷你過去給出去的代幣授權。'
+                        : 'Role: your asset housekeeper / approval cleanup tool. It is a dashboard website for checking and revoking token approvals you have granted before.'}
+                    </p>
+                    <p className="text-lg mb-2">
+                      {language === 'chinese'
+                        ? '例如：你半年前為了領空投，給某個網站「無限動用 USDT」的權限，之後忘記撤銷。如果該合約被駭，駭客可以直接把你現在錢包裡的 USDT 轉走。'
+                        : 'For example: half a year ago you approved a site to spend "unlimited USDT" for an airdrop and forgot. If that contract is hacked, the attacker can drain your current USDT.'}
+                    </p>
+                    <p className="text-lg">
+                      {language === 'chinese'
+                        ? '建議養成習慣（例如每月一次）連上 Revoke.cash，找出「不明或已不用的平台授權」，點擊 Revoke 把鑰匙收回。'
+                        : 'Best practice: once a month, connect your wallet to Revoke.cash, find unknown or unused approvals, and click Revoke to take your keys back.'}
+                    </p>
+                    <p className="text-base mt-3 text-slate-400">
+                      {language === 'chinese' ? '官方網站： ' : 'Official site: '}
+                      <a 
+                        href="https://revoke.cash/" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 hover:text-cyan-300 underline"
+                      >
+                        https://revoke.cash/
+                      </a>
+                    </p>
+                  </section>
+                </div>
               ) : (
                 // 顯示圖片
                 <img
@@ -720,8 +815,11 @@ const GamePage = () => {
               >
                 {currentImageIndex + 1} / {
                   // 第三個道具有5頁（4張圖片 + 1頁表格）
+                  // 第五個道具有10頁（9張圖片 + 1頁文字說明）
                   selectedItem === 2 
                     ? 5 
+                    : selectedItem === 4
+                    ? 10
                     : (items[selectedItem].images[language]?.length || items[selectedItem].images.chinese.length)
                 }
               </span>
@@ -755,10 +853,26 @@ const GamePage = () => {
         </motion.div>
       )}
 
-      {/* 底部基石文字 */}
-      <footer className="absolute bottom-10 w-full text-center opacity-40 text-xs tracking-[0.5em] uppercase" style={pixelFontStyle}>
-        ✦The website information is just use for anti-phishing education. The game challenges mimic web pages and are not intended for phishing.✦
-      </footer>
+      {/* 授权挑战选择界面 */}
+      {showAuthorizationChallenges && (
+        <PhaseRoadmap2
+          language={language}
+          setLanguage={setLanguage}
+          onSelectChallenge={(challenge) => {
+            navigate(challenge.route, { replace: false });
+            setShowAuthorizationChallenges(false);
+          }}
+          onClose={() => setShowAuthorizationChallenges(false)}
+          onOpenBackpack={() => setShowBackpack(true)}
+        />
+      )}
+
+      {/* 底部基石文字 - 當顯示授權挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && (
+        <footer className="absolute bottom-10 w-full text-center opacity-40 text-xs tracking-[0.5em] uppercase" style={pixelFontStyle}>
+          ✦The website information is just use for anti-phishing education. The game challenges mimic web pages and are not intended for phishing.✦
+        </footer>
+      )}
 
       {/* 全局 CSS：確保像素風格渲染 [cite: 30] */}
       <style>{`

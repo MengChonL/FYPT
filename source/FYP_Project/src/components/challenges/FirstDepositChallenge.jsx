@@ -7,7 +7,7 @@ import PhaseRoadmap from '../PhaseRoadmap';
 import EthereumIcon from '../../assets/Ethereum.png';
 import MetaMaskFox from '../../assets/MetaMask_Fox.png';
 import DiscordFavicon from '../../assets/Discordicon.png';
-import DiscordPicture1 from '../DiscordPicture1.jpg';
+import DiscordPicture1 from '../../assets/DiscordPicture1.jpg';
 import RichBankImage from '../../assets/Richbank.png';
 import ASDTImage from '../../assets/ASDT.png';
 import CreditCardImage from '../../assets/creditcard.png';
