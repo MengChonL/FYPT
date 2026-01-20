@@ -2,14 +2,51 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    /* Firefox 滾動條樣式 */
+    scrollbar-width: thin;
+    scrollbar-color: #64ffda rgba(13, 13, 13, 0.5);
   }
   
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
     color: #333;
-    overflow: hidden;
-    height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 100vh;
+  }
+  
+  /* 自定義滾動條樣式 - WebKit 瀏覽器 (Chrome, Safari, Edge) */
+  /* 適用於整個網頁和所有可滾動元素 */
+  *::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: rgba(13, 13, 13, 0.5);
+    border-radius: 10px;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #64ffda 0%, #00bcd4 100%);
+    border-radius: 10px;
+    border: 2px solid rgba(13, 13, 13, 0.5);
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  *::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #7effdb 0%, #00d4ff 100%);
+    box-shadow: 0 0 10px rgba(100, 255, 218, 0.5);
+  }
+  
+  *::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #4dd0e1 0%, #0097a7 100%);
+  }
+  
+  /* 水平滾動條樣式 */
+  *::-webkit-scrollbar:horizontal {
+    height: 12px;
   }
   
   /* Curved Loop Styles */
@@ -41,9 +78,10 @@
   .main-container {
     position: relative;
     width: 100vw;
-    height: 100vh;
+    min-height: 100vh;
     background: linear-gradient(135deg, #1a1a1a 0%, #0d0d0d 100%);
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
   
   .menu-bar {

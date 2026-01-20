@@ -33,7 +33,7 @@ const JudgeAuth = ({ config }) => {
         english: 'Scenario 1: Uniswap Website'
       },
       description: {
-        chinese: '你在Google搜索中找到了一個Uniswap網站，想要將 1,000 USDC 兌換成 ETH。在兌換之前出現了一個授權內容，請你判斷一下是合法還是釣魚',
+        chinese: '你在Google搜索中找到了一個Uniswap網站，想要將 317 USDC 兌換成 ETH。在兌換之前出現了一個授權內容，請你判斷一下是合法還是釣魚',
         english: 'You found a Uniswap website in Google search and want to swap 1,000 USDC for ETH. Before the swap, a authoriz ation request appeared, please judge whether it is legitimate or phishing.'
       },
       authorization: {

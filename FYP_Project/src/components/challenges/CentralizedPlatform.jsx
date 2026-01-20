@@ -70,6 +70,7 @@ const CentralizedPlatform = ({ config }) => {
   // Item Reminder State
   const [showItemReminder, setShowItemReminder] = useState(false); // 显示道具提醒
   const [openBackpack, setOpenBackpack] = useState(false); // 控制打开背包
+  const [autoOpenItemIndex, setAutoOpenItemIndex] = useState(null); // 自動打開的道具索引
 
   // License images for carousel
   const licenseImages = useMemo(() => [
@@ -632,6 +633,7 @@ const CentralizedPlatform = ({ config }) => {
     setLicenseError('');
     setShowItemReminder(false);
     setOpenBackpack(false);
+    setAutoOpenItemIndex(null);
   }, [location.pathname, config]);
 
   if (!config) {
@@ -1256,8 +1258,13 @@ const CentralizedPlatform = ({ config }) => {
             <button
               onClick={() => {
                 setShowItemReminder(false);
+                // 自動打開「中心化交易平台指南」（items[2]）
+                setAutoOpenItemIndex(2);
                 setOpenBackpack(true);
-                setTimeout(() => setOpenBackpack(false), 100);
+                setTimeout(() => {
+                  setOpenBackpack(false);
+                  setAutoOpenItemIndex(null);
+                }, 100);
               }}
               className="flex-1 py-4 bg-purple-200 hover:bg-purple-300 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] transform hover:scale-[1.02]"
             >
@@ -1471,6 +1478,7 @@ const CentralizedPlatform = ({ config }) => {
       containerMaxWidth="100vw"
       containerMaxHeight="100vh"
       openBackpack={openBackpack}
+      autoOpenItemIndex={autoOpenItemIndex}
     >
       {/* 道具提醒消息框 */}
       {renderItemReminder()}

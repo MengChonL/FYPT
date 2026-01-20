@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import BrowserFrame from './BrowserFrame';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
@@ -141,6 +142,7 @@ const FirstDepositChallenge = ({ config }) => {
 
   const currentContent = content[language] || content.chinese;
 
+  // 初始化重置
   useEffect(() => {
     setView('map');
     setShowResult(false);
@@ -190,7 +192,6 @@ const FirstDepositChallenge = ({ config }) => {
   const roadmapSteps = [
     { id: 'search', iconType: 'search', status: 'completed', title: { chinese: '下載錢包', english: 'Download Wallet' } },
     { id: 'create', iconType: 'create', status: 'completed', title: { chinese: '創建錢包', english: 'Create Wallet' } },
-    // 本關卡聚焦於「首次入金」，因此將該節點標記為 current，後續「轉賬」維持鎖定狀態
     { id: 'deposit', iconType: 'deposit', status: 'current', title: { chinese: '首次入金', english: 'First Deposit' } },
     { id: 'transfer', iconType: 'transfer', status: 'locked', title: { chinese: '轉賬', english: 'Transfer' } }
   ];
@@ -227,7 +228,6 @@ const FirstDepositChallenge = ({ config }) => {
 
     return (
       <div className="flex items-end h-full px-2 gap-1 bg-[#dfe1e5] pt-1 border-b border-[#dfe1e5] relative z-50">
-        {/* 簡單的返回 / 前進按鈕，控制目前分頁的子頁面 */}
         <div className="flex items-center gap-1 mr-2 mb-1">
           <button
             type="button"
@@ -425,7 +425,7 @@ const FirstDepositChallenge = ({ config }) => {
       );
       }
 
-      // Discord 中點擊 richbank 連結後的轉帳頁面（先留空白介面）
+      // Discord 中點擊 richbank 連結後的轉帳頁面
       if (discordView === 'richbank') {
         return (
           <div className="w-full h-full flex items-center justify-center bg-[#f3f4f6] text-gray-800">
@@ -480,6 +480,7 @@ const FirstDepositChallenge = ({ config }) => {
                 </label>
                 <input
                   type="text"
+                  defaultValue="009871232331"
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder={
                     language === 'chinese'
@@ -1193,4 +1194,3 @@ const FirstDepositChallenge = ({ config }) => {
 };
 
 export default FirstDepositChallenge;
-

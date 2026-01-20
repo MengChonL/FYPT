@@ -62,6 +62,7 @@ const IdentifyMalicious = ({ config }) => {
   // Item Reminder State
   const [showItemReminder, setShowItemReminder] = useState(false);
   const [openBackpack, setOpenBackpack] = useState(false);
+  const [autoOpenItemIndex, setAutoOpenItemIndex] = useState(null); // 自動打開的道具索引
 
   // Touch Drag State (for tablet/mobile support - Stage 1)
   const [touchDragState, setTouchDragState] = useState({
@@ -285,6 +286,7 @@ Transaction Fee (Gas):
     setFunctionErrorItems([]);
     setShowItemReminder(false);
     setOpenBackpack(false);
+    setAutoOpenItemIndex(null);
   }, [location.pathname, config]);
 
   if (!config) {
@@ -1039,8 +1041,13 @@ Transaction Fee (Gas):
             <button
               onClick={() => {
                 setShowItemReminder(false);
+                // 自動打開「授權知識指南」（items[4]）
+                setAutoOpenItemIndex(4);
                 setOpenBackpack(true);
-                setTimeout(() => setOpenBackpack(false), 100);
+                setTimeout(() => {
+                  setOpenBackpack(false);
+                  setAutoOpenItemIndex(null);
+                }, 100);
               }}
               className="flex-1 py-4 bg-purple-200 hover:bg-purple-300 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] transform hover:scale-[1.02]"
             >
@@ -1523,6 +1530,7 @@ Transaction Fee (Gas):
         containerMaxWidth="100vw"
         containerMaxHeight="100vh"
         openBackpack={openBackpack}
+      autoOpenItemIndex={autoOpenItemIndex}
       >
       {/* 道具提醒消息框 */}
       {renderItemReminder()}
