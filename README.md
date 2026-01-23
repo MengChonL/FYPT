@@ -14,3 +14,4 @@ This project proposes the design of a gamified training platform to help users p
 # Requirements
 
 Students with prior experience in design or development are preferred. Strong motivation, ability to work independently, and interest in human computer interaction are expected.
+front-end demo:https://fyp-2025-ee6.pages.dev/game
