@@ -70,6 +70,7 @@ const ChallengeTemplate = ({
   containerMaxWidth = '75vw',
   containerMaxHeight = '75vh',
   openBackpack = false, // 外部控制打开背包
+  autoOpenItemIndex = null, // 自動打開指定索引的道具（跳過背包界面）
 }) => {
   const navigate = useNavigate();
   const [showBackpack, setShowBackpack] = useState(false);
@@ -204,10 +205,30 @@ const ChallengeTemplate = ({
 
   // 监听 openBackpack prop，当为 true 时打开背包
   useEffect(() => {
+    // 如果指定了 autoOpenItemIndex 且 openBackpack 為 true，優先處理自動打開道具
+    if (autoOpenItemIndex !== null && autoOpenItemIndex !== undefined && openBackpack) {
+      const itemIndex = Number(autoOpenItemIndex); // 確保是數字
+      const item = items[itemIndex];
+      if (item && item.usable && item.images) {
+        // 直接打開道具查看器，跳過背包界面
+        setSelectedItem(itemIndex);
+        setCurrentImageIndex(0);
+        setShowItemViewer(true);
+        setShowBackpack(false);
+        return; // 提前返回，不執行後續邏輯
+      } else {
+        // 如果道具不可用，則打開背包並選中該道具
+        setSelectedItem(itemIndex);
+        setShowBackpack(true);
+        return; // 提前返回，不執行後續邏輯
+      }
+    }
+    
+    // 如果沒有指定自動打開的道具，正常打開背包
     if (openBackpack) {
       setShowBackpack(true);
     }
-  }, [openBackpack]);
+  }, [openBackpack, autoOpenItemIndex]);
 
   // 處理使用道具
   const handleUseItem = (itemIndex) => {
@@ -224,10 +245,10 @@ const ChallengeTemplate = ({
     const item = items[selectedItem];
     if (item?.images) {
       const images = item.images[language] || item.images.chinese;
-      // 第 3 個道具有 5 頁（4 張圖片 + 1 頁表格）
+      // 第 3 個道具有 6 頁（4 張圖片 + 1 頁表格 + 1 頁平台網址）
       // 第 5 個道具有 10 頁（9 張圖片 + 1 頁文字說明）
       let maxPages = images.length;
-      if (selectedItem === 2) maxPages = 5;
+      if (selectedItem === 2) maxPages = 6;
       if (selectedItem === 4) maxPages = 10;
       setCurrentImageIndex((prev) => (prev + 1) % maxPages);
     }
@@ -238,7 +259,7 @@ const ChallengeTemplate = ({
     if (item?.images) {
       const images = item.images[language] || item.images.chinese;
       let maxPages = images.length;
-      if (selectedItem === 2) maxPages = 5;
+      if (selectedItem === 2) maxPages = 6;
       if (selectedItem === 4) maxPages = 10;
       setCurrentImageIndex((prev) => (prev - 1 + maxPages) % maxPages);
     }
@@ -688,6 +709,182 @@ const ChallengeTemplate = ({
                     </table>
                   </div>
                 </div>
+              ) : selectedItem === 2 && currentImageIndex === 5 ? (
+                // 第 3 個道具第 6 頁：主流中心化交易平台網址
+                <div className="p-8 text-white pb-24" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                  <h2 className="text-2xl font-bold mb-6 text-center text-cyan-400" style={{ fontFamily: "'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace" }}>
+                    {language === 'chinese' ? '主流中心化交易平台網址' : 'Mainstream Centralized Exchange Platform URLs'}
+                  </h2>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse min-w-[800px]" style={{ fontFamily: "'Courier New', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace" }}>
+                      <thead>
+                        <tr className="bg-gray-800">
+                          <th className="border-2 border-gray-600 px-4 py-3 text-left text-cyan-400" style={{ width: '10%' }}>
+                            {language === 'chinese' ? '序號' : 'No.'}
+                          </th>
+                          <th className="border-2 border-gray-600 px-4 py-3 text-left text-cyan-400" style={{ width: '20%' }}>
+                            {language === 'chinese' ? '平台名稱' : 'Platform Name'}
+                          </th>
+                          <th className="border-2 border-gray-600 px-4 py-3 text-left text-cyan-400" style={{ width: '70%', minWidth: '400px' }}>
+                            {language === 'chinese' ? '官方網址' : 'Official Website'}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Binance */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">1</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Binance</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.binance.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.binance.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Coinbase */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">2</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Coinbase</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.coinbase.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.coinbase.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Kraken */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">3</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Kraken</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.kraken.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.kraken.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* OKX */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">4</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">OKX</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.okx.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.okx.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Bybit */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">5</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Bybit</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.bybit.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.bybit.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Bitget */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">6</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Bitget</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.bitget.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.bitget.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* KuCoin */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">7</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">KuCoin</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.kucoin.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.kucoin.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Gate.io */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">8</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Gate.io</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.gate.io" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.gate.io
+                            </a>
+                          </td>
+                        </tr>
+                        {/* HTX */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">9</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">HTX</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.htx.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.htx.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Crypto.com */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">10</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Crypto.com</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.crypto.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.crypto.com
+                            </a>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               ) : selectedItem === 4 && currentImageIndex === 9 ? (
                 // 第 5 個道具第 10 頁：Pocket Universe & Revoke.cash 文字說明
                 <div className="p-8 text-white text-left space-y-6" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
@@ -772,7 +969,7 @@ const ChallengeTemplate = ({
             </div>
             
             {/* 導航按鈕 - 位置放低避免擋住圖片 */}
-            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 flex gap-4 items-center z-10">
+            <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 flex gap-4 items-center z-10">
               {/* 上一頁按鈕 */}
               <button
                 onClick={handlePrevImage}
@@ -813,10 +1010,10 @@ const ChallengeTemplate = ({
                 }}
               >
                 {currentImageIndex + 1} / {
-                  // 第三個道具有5頁（4張圖片 + 1頁表格）
+                  // 第三個道具有6頁（4張圖片 + 1頁表格 + 1頁平台網址）
                   // 第五個道具有10頁（9張圖片 + 1頁文字說明）
                   selectedItem === 2 
-                    ? 5 
+                    ? 6 
                     : selectedItem === 4
                     ? 10
                     : (items[selectedItem].images[language]?.length || items[selectedItem].images.chinese.length)

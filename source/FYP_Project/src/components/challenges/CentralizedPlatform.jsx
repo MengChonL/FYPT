@@ -51,6 +51,17 @@ const CentralizedPlatform = ({ config }) => {
   const [draggedItem, setDraggedItem] = useState(null);
   const [errorItems, setErrorItems] = useState([]);
 
+  // Touch Drag State (for tablet/mobile support)
+  const [touchDragState, setTouchDragState] = useState({
+    isDragging: false,
+    item: null,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0,
+    targetBox: null
+  });
+
   // Stage 3: Coinbase License Selection State
   const [selectedLicenses, setSelectedLicenses] = useState([]);
   const [licenseError, setLicenseError] = useState('');
@@ -59,6 +70,7 @@ const CentralizedPlatform = ({ config }) => {
   // Item Reminder State
   const [showItemReminder, setShowItemReminder] = useState(false); // 显示道具提醒
   const [openBackpack, setOpenBackpack] = useState(false); // 控制打开背包
+  const [autoOpenItemIndex, setAutoOpenItemIndex] = useState(null); // 自動打開的道具索引
 
   // License images for carousel
   const licenseImages = useMemo(() => [
@@ -621,6 +633,7 @@ const CentralizedPlatform = ({ config }) => {
     setLicenseError('');
     setShowItemReminder(false);
     setOpenBackpack(false);
+    setAutoOpenItemIndex(null);
   }, [location.pathname, config]);
 
   if (!config) {
@@ -727,7 +740,7 @@ const CentralizedPlatform = ({ config }) => {
   const currentContent = config.content[language];
   const introData = config?.intro?.[language];
 
-  // Drag Handlers
+  // Drag Handlers (Mouse/Desktop)
   const handleDragStart = (e, item) => {
     setDraggedItem(item);
     e.dataTransfer.effectAllowed = "move";
@@ -757,6 +770,112 @@ const CentralizedPlatform = ({ config }) => {
     }
     setDraggedItem(null);
   };
+
+  // Touch Handlers (Tablet/Mobile)
+  const handleTouchStart = (e, item) => {
+    const touch = e.touches[0];
+    setTouchDragState({
+      isDragging: true,
+      item: item,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      currentX: touch.clientX,
+      currentY: touch.clientY,
+      targetBox: null
+    });
+    e.preventDefault(); // Prevent scrolling while dragging
+  };
+
+  // Prevent default touch behavior on document when dragging
+  useEffect(() => {
+    if (touchDragState.isDragging) {
+      const handleTouchMoveGlobal = (e) => {
+        if (!touchDragState.isDragging) return;
+        
+        const touch = e.touches[0];
+        const currentX = touch.clientX;
+        const currentY = touch.clientY;
+
+        // Find which box the touch is over
+        const elements = document.elementsFromPoint(currentX, currentY);
+        let targetBox = null;
+        
+        for (const el of elements) {
+          if (el.getAttribute('data-drop-zone') === 'phishing') {
+            targetBox = 'phishing';
+            break;
+          } else if (el.getAttribute('data-drop-zone') === 'legit') {
+            targetBox = 'legit';
+            break;
+          } else if (el.getAttribute('data-drop-zone') === 'center') {
+            targetBox = 'center';
+            break;
+          }
+        }
+
+        setTouchDragState(prev => ({
+          ...prev,
+          currentX,
+          currentY,
+          targetBox
+        }));
+        e.preventDefault(); // Prevent scrolling
+      };
+
+      const handleTouchEndGlobal = (e) => {
+        if (!touchDragState.isDragging || !touchDragState.item) {
+          setTouchDragState({
+            isDragging: false,
+            item: null,
+            startX: 0,
+            startY: 0,
+            currentX: 0,
+            currentY: 0,
+            targetBox: null
+          });
+          return;
+        }
+
+        const item = touchDragState.item;
+        const targetBox = touchDragState.targetBox;
+
+        // Remove from all lists first
+        setItems(prev => prev.filter(i => i.id !== item.id));
+        setPhishingBox(prev => prev.filter(i => i.id !== item.id));
+        setLegitBox(prev => prev.filter(i => i.id !== item.id));
+
+        // Add to target (if valid target, otherwise return to center)
+        if (targetBox === 'phishing') {
+          setPhishingBox(prev => [...prev, item]);
+        } else if (targetBox === 'legit') {
+          setLegitBox(prev => [...prev, item]);
+        } else if (targetBox === 'center') {
+          setItems(prev => [...prev, item]);
+        } else {
+          // If dropped outside, return to center
+          setItems(prev => [...prev, item]);
+        }
+
+        // Reset touch drag state
+        setTouchDragState({
+          isDragging: false,
+          item: null,
+          startX: 0,
+          startY: 0,
+          currentX: 0,
+          currentY: 0,
+          targetBox: null
+        });
+      };
+
+      document.addEventListener('touchmove', handleTouchMoveGlobal, { passive: false });
+      document.addEventListener('touchend', handleTouchEndGlobal, { passive: false });
+      return () => {
+        document.removeEventListener('touchmove', handleTouchMoveGlobal);
+        document.removeEventListener('touchend', handleTouchEndGlobal);
+      };
+    }
+  }, [touchDragState.isDragging, touchDragState.item, touchDragState.targetBox]);
 
   // 輔助函數：查找域名的釣魚類型
   const findPhishingCategory = (domainName) => {
@@ -1139,8 +1258,13 @@ const CentralizedPlatform = ({ config }) => {
             <button
               onClick={() => {
                 setShowItemReminder(false);
+                // 自動打開「中心化交易平台指南」（items[2]）
+                setAutoOpenItemIndex(2);
                 setOpenBackpack(true);
-                setTimeout(() => setOpenBackpack(false), 100);
+                setTimeout(() => {
+                  setOpenBackpack(false);
+                  setAutoOpenItemIndex(null);
+                }, 100);
               }}
               className="flex-1 py-4 bg-purple-200 hover:bg-purple-300 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] transform hover:scale-[1.02]"
             >
@@ -1354,6 +1478,7 @@ const CentralizedPlatform = ({ config }) => {
       containerMaxWidth="100vw"
       containerMaxHeight="100vh"
       openBackpack={openBackpack}
+      autoOpenItemIndex={autoOpenItemIndex}
     >
       {/* 道具提醒消息框 */}
       {renderItemReminder()}
@@ -1406,8 +1531,17 @@ const CentralizedPlatform = ({ config }) => {
                   {/* Red Box - Phishing */}
                   <div 
                     className="flex-1 bg-red-900/20 border-4 border-red-500 flex flex-col transition-colors hover:bg-red-900/30"
+                    data-drop-zone="phishing"
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, 'phishing')}
+                    style={{
+                      borderColor: touchDragState.isDragging && touchDragState.targetBox === 'phishing' 
+                        ? '#fbbf24' 
+                        : '#ef4444',
+                      borderWidth: touchDragState.isDragging && touchDragState.targetBox === 'phishing' 
+                        ? '6px' 
+                        : '4px'
+                    }}
                   >
                     {/* Pixel X background */}
                     <div className="absolute inset-0 opacity-10 pointer-events-none"
@@ -1430,7 +1564,13 @@ const CentralizedPlatform = ({ config }) => {
                           key={item.id} 
                           draggable 
                           onDragStart={(e) => handleDragStart(e, item)}
-                          className="bg-red-500/10 p-3 text-red-300 border-2 border-red-500/50 cursor-grab active:cursor-grabbing hover:bg-red-500/20 flex items-start"
+                          onTouchStart={(e) => handleTouchStart(e, item)}
+                          className="bg-red-500/10 p-3 text-red-300 border-2 border-red-500/50 cursor-grab active:cursor-grabbing hover:bg-red-500/20 flex items-start touch-none select-none"
+                          style={{
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            WebkitTouchCallout: 'none'
+                          }}
                         >
                           <AlertIconSmall />
                           <span className="text-sm">{item.name || (language === 'chinese' ? item.content : (item.contentEn || item.content))}</span>
@@ -1442,8 +1582,17 @@ const CentralizedPlatform = ({ config }) => {
                   {/* Center - Source */}
                   <div 
                     className="flex-1 flex flex-col bg-slate-800 border-4 border-slate-600 p-4"
+                    data-drop-zone="center"
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, 'center')}
+                    style={{
+                      borderColor: touchDragState.isDragging && touchDragState.targetBox === 'center' 
+                        ? '#fbbf24' 
+                        : '#475569',
+                      borderWidth: touchDragState.isDragging && touchDragState.targetBox === 'center' 
+                        ? '6px' 
+                        : '4px'
+                    }}
                   >
                     <div className="flex-1 overflow-y-auto space-y-3 p-2">
                       {items.map(item => (
@@ -1451,7 +1600,18 @@ const CentralizedPlatform = ({ config }) => {
                           key={item.id} 
                           draggable 
                           onDragStart={(e) => handleDragStart(e, item)}
-                          className={`bg-slate-700 p-3 text-white text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all border-2 border-slate-500 ${stage === 2 ? 'text-sm text-left' : ''}`}
+                          onTouchStart={(e) => handleTouchStart(e, item)}
+                          className={`bg-slate-700 p-3 text-white text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all border-2 border-slate-500 touch-none select-none ${stage === 2 ? 'text-sm text-left' : ''}`}
+                          style={{
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            WebkitTouchCallout: 'none',
+                            transform: touchDragState.isDragging && touchDragState.item?.id === item.id
+                              ? `translate(${touchDragState.currentX - touchDragState.startX}px, ${touchDragState.currentY - touchDragState.startY}px)`
+                              : undefined,
+                            opacity: touchDragState.isDragging && touchDragState.item?.id === item.id ? 0.7 : 1,
+                            zIndex: touchDragState.isDragging && touchDragState.item?.id === item.id ? 1000 : 1
+                          }}
                         >
                           {item.name || (language === 'chinese' ? item.content : (item.contentEn || item.content))}
                         </div>
@@ -1487,8 +1647,17 @@ const CentralizedPlatform = ({ config }) => {
                   {/* Green Box - Legit */}
                   <div 
                     className="flex-1 bg-green-900/20 border-4 border-green-500 flex flex-col transition-colors hover:bg-green-900/30"
+                    data-drop-zone="legit"
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, 'legit')}
+                    style={{
+                      borderColor: touchDragState.isDragging && touchDragState.targetBox === 'legit' 
+                        ? '#fbbf24' 
+                        : '#22c55e',
+                      borderWidth: touchDragState.isDragging && touchDragState.targetBox === 'legit' 
+                        ? '6px' 
+                        : '4px'
+                    }}
                   >
                     {/* Pixel check background */}
                     <div className="absolute inset-0 opacity-10 pointer-events-none"
@@ -1511,7 +1680,13 @@ const CentralizedPlatform = ({ config }) => {
                           key={item.id} 
                           draggable 
                           onDragStart={(e) => handleDragStart(e, item)}
-                          className="bg-green-500/10 p-3 text-green-300 border-2 border-green-500/50 cursor-grab active:cursor-grabbing hover:bg-green-500/20 flex items-start"
+                          onTouchStart={(e) => handleTouchStart(e, item)}
+                          className="bg-green-500/10 p-3 text-green-300 border-2 border-green-500/50 cursor-grab active:cursor-grabbing hover:bg-green-500/20 flex items-start touch-none select-none"
+                          style={{
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            WebkitTouchCallout: 'none'
+                          }}
                         >
                           <CheckIconSmall />
                           <span className="text-sm">{item.name || (language === 'chinese' ? item.content : (item.contentEn || item.content))}</span>

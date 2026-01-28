@@ -84,13 +84,17 @@ const ChallengeResultScreen = ({
       className="text-center"
     >
       <div 
-        className="relative w-full h-full bg-gray-900 overflow-y-auto pixel-font text-white" 
+        className="relative w-full bg-gray-900 overflow-y-auto pixel-font text-white" 
         style={{ 
           minHeight: '100vh',
-          height: '100vh',
           width: '100vw',
           boxShadow: 'inset 0 0 30px rgba(0,0,0,0.3)',
-          ...customStyles.container
+          // 合并自定义样式，但确保可以滚动
+          ...customStyles.container,
+          // 强制启用垂直滚动，确保内容可以滚动到底部
+          overflowY: 'auto',
+          // 如果设置了固定高度，保持它以便滚动工作
+          height: customStyles.container?.height || 'auto',
         }}
       >
         {/* 装饰性圆圈和线条 */}

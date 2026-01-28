@@ -148,13 +148,25 @@ const IndexPage = () => {
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: "spring", stiffness: 100, delay: 1 }}
-        className="z-20 mb-16"
+        className="z-20 mb-16 flex flex-col items-center"
         style={{ 
           marginTop: '-300px', // 向上調整更多位置
           transform: 'translateY(-300px)' // 額外的 Y 軸調整
         }}
       >
         <HaloStartButton onStart={handleEnter} />
+        
+        {/* 深色模式提示 */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.5 }}
+          className="mt-8 px-4 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/50 backdrop-blur-sm"
+        >
+          <p className="text-sm text-yellow-300 text-center font-medium">
+            💡 提示：請關閉深色模式，以獲得更好的遊戲體驗
+          </p>
+        </motion.div>
       </motion.div>
 
       {/* --- 底部資訊 --- */}

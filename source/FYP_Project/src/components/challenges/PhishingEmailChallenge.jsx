@@ -24,6 +24,7 @@ const PhishingEmailChallenge = ({ config }) => {
   const [source, setSource] = useState('google'); // 跟踪来源：google, discord, x
   const [showItemReminder, setShowItemReminder] = useState(false); // 显示道具提醒
   const [openBackpack, setOpenBackpack] = useState(false); // 控制打开背包
+  const [autoOpenItemIndex, setAutoOpenItemIndex] = useState(null); // 自動打開的道具索引
   
   const t = config?.content?.[language];
   const introData = config?.intro?.[language];
@@ -139,6 +140,7 @@ const PhishingEmailChallenge = ({ config }) => {
     setShowResult(false);
     setShowItemReminder(false);
     setOpenBackpack(false);
+    setAutoOpenItemIndex(null);
   }, [location.pathname]);
 
   const handleStartLevel = (stepId) => { if (stepId === 'search') setView('intro'); };
@@ -663,9 +665,14 @@ const PhishingEmailChallenge = ({ config }) => {
             <button
               onClick={() => {
                 setShowItemReminder(false);
+                // 設置自動打開 item1（索引 0）
+                setAutoOpenItemIndex(0);
                 setOpenBackpack(true);
-                // 重置 openBackpack 状态，以便下次可以再次打开
-                setTimeout(() => setOpenBackpack(false), 100);
+                // 重置狀態，以便下次可以再次打開
+                setTimeout(() => {
+                  setOpenBackpack(false);
+                  setAutoOpenItemIndex(null);
+                }, 100);
               }}
               className="flex-1 py-4 bg-purple-200 hover:bg-purple-300 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] transform hover:scale-[1.02]"
             >
@@ -694,6 +701,7 @@ const PhishingEmailChallenge = ({ config }) => {
       containerMaxWidth="100vw"
       containerMaxHeight="100vh"
       openBackpack={openBackpack}
+      autoOpenItemIndex={autoOpenItemIndex}
     >
       {/* 道具提醒消息框 */}
       {renderItemReminder()}

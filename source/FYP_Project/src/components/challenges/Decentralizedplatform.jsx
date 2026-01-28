@@ -28,6 +28,7 @@ const Decentralizedplatform = ({ config }) => {
   // Item Reminder State
   const [showItemReminder, setShowItemReminder] = useState(false);
   const [openBackpack, setOpenBackpack] = useState(false);
+  const [autoOpenItemIndex, setAutoOpenItemIndex] = useState(null); // 自動打開的道具索引
 
   // 初始化：路由变化时重置状态
   useEffect(() => {
@@ -41,6 +42,7 @@ const Decentralizedplatform = ({ config }) => {
     setAnomalyError('');
     setShowItemReminder(false);
     setOpenBackpack(false);
+    setAutoOpenItemIndex(null);
   }, [location.pathname, config]);
 
   if (!config) {
@@ -134,8 +136,13 @@ const Decentralizedplatform = ({ config }) => {
             <button
               onClick={() => {
                 setShowItemReminder(false);
+                // 自動打開「去中心化交易平台指南」（items[3]）
+                setAutoOpenItemIndex(3);
                 setOpenBackpack(true);
-                setTimeout(() => setOpenBackpack(false), 100);
+                setTimeout(() => {
+                  setOpenBackpack(false);
+                  setAutoOpenItemIndex(null);
+                }, 100);
               }}
               className="flex-1 py-4 bg-purple-200 hover:bg-purple-300 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] transform hover:scale-[1.02]"
             >
@@ -635,6 +642,7 @@ const Decentralizedplatform = ({ config }) => {
       containerMaxWidth="100vw"
       containerMaxHeight="100vh"
       openBackpack={openBackpack}
+      autoOpenItemIndex={autoOpenItemIndex}
     >
       {/* 道具提醒消息框 */}
       {renderItemReminder()}

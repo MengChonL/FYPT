@@ -282,7 +282,7 @@ const CreateWalletChallenge = ({ config }) => {
   );
 
   const renderOnboardingPage = () => (
-    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1]">
+    <div className="w-full min-h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1] py-8">
       <div className="w-full max-w-2xl mx-auto p-8">
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
           {/* Header */}
@@ -350,7 +350,7 @@ const CreateWalletChallenge = ({ config }) => {
   );
 
   const renderPasswordPage = () => (
-    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1]">
+    <div className="w-full min-h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1] py-8">
       <div className="w-full max-w-2xl mx-auto p-8">
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
           {/* Header */}
@@ -456,7 +456,7 @@ const CreateWalletChallenge = ({ config }) => {
     const mnemonicWords = mnemonic.split(' ').filter(word => word.trim() !== '');
 
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1]">
+      <div className="w-full min-h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1] py-8">
         <div className="w-full max-w-4xl mx-auto p-8">
           <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
             {/* Header */}

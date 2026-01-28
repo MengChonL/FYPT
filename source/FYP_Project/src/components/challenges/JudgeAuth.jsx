@@ -33,7 +33,7 @@ const JudgeAuth = ({ config }) => {
         english: 'Scenario 1: Uniswap Website'
       },
       description: {
-        chinese: '你在Google搜索中找到了一個Uniswap網站，想要將 1,000 USDC 兌換成 ETH。在兌換之前出現了一個授權內容，請你判斷一下是合法還是釣魚',
+        chinese: '你在Google搜索中找到了一個Uniswap網站，想要將 317 USDC 兌換成 ETH。在兌換之前出現了一個授權內容，請你判斷一下是合法還是釣魚',
         english: 'You found a Uniswap website in Google search and want to swap 1,000 USDC for ETH. Before the swap, a authoriz ation request appeared, please judge whether it is legitimate or phishing.'
       },
       authorization: {
@@ -439,19 +439,29 @@ const JudgeAuth = ({ config }) => {
                     onClick={() => handleSelectAnswer('legit')}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`p-6 rounded-xl transition-all transform text-white ${
+                    className={`p-6 rounded-xl transition-all transform text-white relative overflow-hidden ${
                       selectedAnswer === 'legit'
-                        ? 'border-4 border-white'
-                        : 'border-2 border-transparent hover:border-gray-400'
+                        ? 'bg-gradient-to-br from-green-600 to-green-700 border-4 border-green-400'
+                        : 'bg-black border-2 border-transparent hover:border-gray-400'
                     }`}
-                    style={{
+                    style={selectedAnswer === 'legit' ? {
+                      boxShadow: '0 0 30px rgba(34, 197, 94, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2)',
+                      animation: 'pulse-glow-judge 2s ease-in-out infinite'
+                    } : {
                       backgroundColor: '#000000'
                     }}
                   >
+                    {selectedAnswer === 'legit' && (
+                      <div className="absolute top-2 right-2">
+                        <svg className="w-8 h-8 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
                     <div className="text-xl font-bold mb-2">
                       {language === 'chinese' ? '✓ 合法' : '✓ Legitimate'}
                     </div>
-                    <div className="text-sm opacity-90">
+                    <div className={`text-sm ${selectedAnswer === 'legit' ? 'text-white opacity-95' : 'opacity-90'}`}>
                       {language === 'chinese' 
                         ? '正規平台的授權請求'
                         : 'Legitimate platform authorization'}
@@ -462,19 +472,29 @@ const JudgeAuth = ({ config }) => {
                     onClick={() => handleSelectAnswer('phishing')}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`p-6 rounded-xl transition-all transform text-white ${
+                    className={`p-6 rounded-xl transition-all transform text-white relative overflow-hidden ${
                       selectedAnswer === 'phishing'
-                        ? 'border-4 border-white'
-                        : 'border-2 border-transparent hover:border-gray-400'
+                        ? 'bg-gradient-to-br from-red-600 to-red-700 border-4 border-red-400'
+                        : 'bg-black border-2 border-transparent hover:border-gray-400'
                     }`}
-                    style={{
+                    style={selectedAnswer === 'phishing' ? {
+                      boxShadow: '0 0 30px rgba(239, 68, 68, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2)',
+                      animation: 'pulse-glow-red-judge 2s ease-in-out infinite'
+                    } : {
                       backgroundColor: '#000000'
                     }}
                   >
+                    {selectedAnswer === 'phishing' && (
+                      <div className="absolute top-2 right-2">
+                        <svg className="w-8 h-8 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
                     <div className="text-xl font-bold mb-2">
                       {language === 'chinese' ? '⚠ 釣魚' : '⚠ Phishing'}
                     </div>
-                    <div className="text-sm opacity-90">
+                    <div className={`text-sm ${selectedAnswer === 'phishing' ? 'text-white opacity-95' : 'opacity-90'}`}>
                       {language === 'chinese' 
                         ? '可疑或惡意的授權請求'
                         : 'Suspicious or malicious authorization'}
@@ -555,13 +575,32 @@ const JudgeAuth = ({ config }) => {
   };
 
   return (
-    <ChallengeTemplate
-      language={language}
-      setLanguage={setLanguage}
-      containerMaxWidth="100vw"
-      containerMaxHeight="100vh"
-      openBackpack={openBackpack}
-    >
+    <>
+      <style>{`
+        @keyframes pulse-glow-judge {
+          0%, 100% {
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 50px rgba(34, 197, 94, 1), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+        }
+        @keyframes pulse-glow-red-judge {
+          0%, 100% {
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 50px rgba(239, 68, 68, 1), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+        }
+      `}</style>
+      <ChallengeTemplate
+        language={language}
+        setLanguage={setLanguage}
+        containerMaxWidth="100vw"
+        containerMaxHeight="100vh"
+        openBackpack={openBackpack}
+      >
       {/* 任务介绍视图 */}
       {view === 'intro' && (
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -645,7 +684,8 @@ const JudgeAuth = ({ config }) => {
           nextLevelButtonText={language === 'chinese' ? '下一關' : 'Next Level'}
         />
       )}
-    </ChallengeTemplate>
+      </ChallengeTemplate>
+    </>
   );
 };
 

@@ -220,12 +220,35 @@ const DrawingCanvas = ({ isEnabled, width, height, targets, onValidation }) => {
     contextRef.current = ctx;
   }, [width, height]);
 
+  // Get coordinates from mouse or touch event
   const getCoords = (e) => {
-    return { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+
+    // Handle touch events
+    if (e.touches && e.touches.length > 0) {
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const scrollContainer = document.getElementById('scam-scroll-container');
+      const scrollX = scrollContainer ? scrollContainer.scrollLeft : window.scrollX;
+      const scrollY = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
+      
+      return {
+        x: touch.clientX - rect.left + scrollX,
+        y: touch.clientY - rect.top + scrollY
+      };
+    }
+
+    // Handle mouse events
+    return { 
+      x: e.nativeEvent.offsetX, 
+      y: e.nativeEvent.offsetY 
+    };
   };
 
   const startDrawing = (e) => {
     if (!isEnabled || !contextRef.current) return;
+    e.preventDefault(); // Prevent scrolling on touch devices
     const { x, y } = getCoords(e);
     contextRef.current.beginPath();
     contextRef.current.moveTo(x, y);
@@ -236,6 +259,7 @@ const DrawingCanvas = ({ isEnabled, width, height, targets, onValidation }) => {
 
   const draw = (e) => {
     if (!isDrawing || !isEnabled || !contextRef.current) return;
+    e.preventDefault(); // Prevent scrolling on touch devices
     const { x, y } = getCoords(e);
     contextRef.current.lineTo(x, y);
     contextRef.current.stroke();
@@ -246,8 +270,9 @@ const DrawingCanvas = ({ isEnabled, width, height, targets, onValidation }) => {
     currentStrokeMax.current.y = Math.max(currentStrokeMax.current.y, y);
   };
 
-  const finishDrawing = () => {
+  const finishDrawing = (e) => {
     if (!isDrawing || !contextRef.current) return;
+    if (e) e.preventDefault(); // Prevent scrolling on touch devices
     contextRef.current.closePath();
     setIsDrawing(false);
 
@@ -296,9 +321,19 @@ const DrawingCanvas = ({ isEnabled, width, height, targets, onValidation }) => {
       onMouseDown={startDrawing}
       onMouseUp={finishDrawing}
       onMouseMove={draw}
+      onTouchStart={startDrawing}
+      onTouchEnd={finishDrawing}
+      onTouchMove={draw}
       // ★ 關鍵修改：將 z-[70] 改為 z-[120]，確保它永遠在 Modal 之上
-      className={`absolute top-0 left-0 z-[120] ${isEnabled ? 'pointer-events-auto cursor-pen' : 'pointer-events-none'}`}
-      style={{ width, height }}
+      className={`absolute top-0 left-0 z-[120] ${isEnabled ? 'pointer-events-auto cursor-pen touch-none select-none' : 'pointer-events-none'}`}
+      style={{ 
+        width, 
+        height,
+        touchAction: 'none', // Prevent default touch behaviors (scrolling, zooming)
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none'
+      }}
     />
   );
 };
@@ -635,17 +670,8 @@ const QuantumFiScam = () => {
       <div className="relative w-screen h-screen bg-slate-950 text-white overflow-hidden">
         <CustomStyles />
 
-        {/* 結果頁：在「QuantumFi Beta」旁邊放語言切換（像文字，不像按鈕） */}
+        {/* 結果頁：只保留語言切換 */}
         <div className="absolute top-4 left-4 z-[110] flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-yellow-200 tracking-tight">
-              QuantumFi
-            </span>
-            <span className="bg-yellow-500/20 text-yellow-400 text-[11px] font-bold px-2 py-0.5 rounded border border-yellow-500/30 uppercase tracking-wider">
-              Beta
-            </span>
-          </div>
-
           <div className="lang-toggle" aria-label="Language switch">
             <span
               role="button"
