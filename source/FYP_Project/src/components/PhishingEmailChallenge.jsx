@@ -656,7 +656,15 @@ const PhishingEmailChallenge = ({ config }) => {
                  <div className="bg-[#f7f9f9] rounded-2xl p-4 mb-4">
                     <h2 className="font-bold text-xl mb-2 text-black">{content.x.subscribeTitle}</h2>
                     <p className="text-black mb-2 leading-tight">{content.x.subscribeDesc}</p>
-                    <button className="bg-black text-white font-bold rounded-full px-5 py-2 hover:bg-gray-800 transition-colors">{content.x.subscribeBtn}</button>
+                    <button 
+                      className="font-bold rounded-full px-5 py-2 transition-colors"
+                      style={{
+                        backgroundColor: '#000000',
+                        color: '#ffffff',
+                        border: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >{content.x.subscribeBtn}</button>
                  </div>
 
                  <div className="bg-[#f7f9f9] rounded-2xl pt-4 mb-4">

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Folder from './Folder';
+import { useGame } from '../context/GameContext';
 
 // PixelIcon 组件
 const PixelIcon = ({ type }) => {
@@ -22,30 +23,51 @@ const PixelIcon = ({ type }) => {
 };
 
 const PhaseRoadmap2 = ({ language, setLanguage, onSelectChallenge, onClose, onOpenBackpack }) => {
+  const { canStartScenario, currentScenarioCode } = useGame();
   const [selectedChallengeId, setSelectedChallengeId] = useState(null);
   const [isStartingChallenge, setIsStartingChallenge] = useState(false);
-  const [currentPos, setCurrentPos] = useState(null); // 当前玩家位置
 
   const challenges = [
     { 
       id: 'deconstruct-auth', 
       iconType: 'deconstruct',
       title: { chinese: '拆解授權內容', english: 'Deconstruct Authorization Content' },
-      route: '/challenge/phase2/malicious-auth'
+      route: '/challenge/phase2/phase2-1',
+      scenarioCode: 'phase2-1'
     },
     { 
       id: 'judge-auth', 
       iconType: 'judge',
       title: { chinese: '判斷授權內容', english: 'Judge Authorization Content' },
-      route: '/challenge/phase2/judge-auth'
+      route: '/challenge/phase2/phase2-2',
+      scenarioCode: 'phase2-2'
     },
     { 
       id: 'danger-auth', 
       iconType: 'danger',
       title: { chinese: '混合詐騙實戰', english: 'Hybrid Scam Drill' },
-      route: '/challenge/phase2/phase2-danger-auth'
+      route: '/challenge/phase2/phase2-3',
+      scenarioCode: 'phase2-3'
     }
   ];
+
+  // 根據用戶當前進度決定玩家位置
+  const getCurrentChallengeId = () => {
+    // 標準化 currentScenarioCode
+    const normalizedCode = currentScenarioCode?.replace('malicious-auth', 'phase2-1')
+      ?.replace('judge-auth', 'phase2-2')
+      ?.replace('phase2-danger-auth', 'phase2-3') || 'phase2-1';
+    
+    const currentChallenge = challenges.find(c => c.scenarioCode === normalizedCode);
+    return currentChallenge?.id || challenges[0].id;
+  };
+
+  const currentPos = getCurrentChallengeId();
+
+  // 檢查挑戰是否鎖定
+  const isChallengeUnlocked = (challenge) => {
+    return canStartScenario(challenge.scenarioCode);
+  };
 
   const getIconColorClass = (type) => {
     switch(type) {
@@ -62,7 +84,7 @@ const PhaseRoadmap2 = ({ language, setLanguage, onSelectChallenge, onClose, onOp
   const handleStart = async () => {
     if (!selectedChallengeId) return;
     const challenge = challenges.find(c => c.id === selectedChallengeId);
-    if (challenge && onSelectChallenge) {
+    if (challenge && onSelectChallenge && isChallengeUnlocked(challenge)) {
       setIsStartingChallenge(true);
       await onSelectChallenge(challenge);
       setIsStartingChallenge(false);
@@ -217,13 +239,14 @@ const PhaseRoadmap2 = ({ language, setLanguage, onSelectChallenge, onClose, onOp
           <div className="relative z-10 w-full h-full flex items-center justify-between px-8 md:px-12">
             {challenges.map((challenge, index) => {
               const isSelected = selectedChallengeId === challenge.id;
-              const isCurrentPos = currentPos === challenge.id || (currentPos === null && index === 0);
+              const isCurrentPos = currentPos === challenge.id;
               const iconColorClass = getIconColorClass(challenge.iconType);
+              const isUnlocked = isChallengeUnlocked(challenge);
 
               return (
                 <div key={challenge.id} className="relative flex flex-col items-center w-28">
                   {/* 玩家狐狸 (X軸與按鈕對齊，Y軸上方) */}
-                  {isCurrentPos && (
+                  {isCurrentPos && isUnlocked && (
                     <motion.div
                       animate={{ y: [0, -5, 0] }}
                       transition={{ repeat: Infinity, duration: 0.8 }}
@@ -233,8 +256,17 @@ const PhaseRoadmap2 = ({ language, setLanguage, onSelectChallenge, onClose, onOp
                     </motion.div>
                   )}
 
+                  {/* 鎖定圖標 (當挑戰鎖定時顯示) */}
+                  {!isUnlocked && (
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 z-30">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                  )}
+
                   {/* 選擇箭頭 (X軸對齊，位在狐狸上方) */}
-                  {isSelected && (
+                  {isSelected && isUnlocked && (
                     <motion.div
                       animate={{ y: [0, -5, 0] }}
                       className="absolute -top-28 left-1/2 -translate-x-1/2 z-40 text-yellow-300 text-2xl font-black"
@@ -244,18 +276,24 @@ const PhaseRoadmap2 = ({ language, setLanguage, onSelectChallenge, onClose, onOp
                   )}
 
                   <motion.button
-                    onClick={() => setSelectedChallengeId(challenge.id)}
-                    whileTap={{ scale: 0.9 }}
+                    onClick={() => isUnlocked && setSelectedChallengeId(challenge.id)}
+                    whileTap={isUnlocked ? { scale: 0.9 } : {}}
                     className={`w-14 h-14 md:w-16 md:h-16 flex items-center justify-center border-4 transition-all z-20
-                      ${isSelected ? 'border-yellow-400 bg-blue-600 shadow-[0_0_15px_rgba(250,204,21,0.6)]' : 'border-black bg-gray-700 hover:bg-gray-600'}`}
+                      ${!isUnlocked ? 'border-gray-600 bg-gray-800 cursor-not-allowed opacity-50' :
+                        isSelected ? 'border-yellow-400 bg-blue-600 shadow-[0_0_15px_rgba(250,204,21,0.6)]' : 'border-black bg-gray-700 hover:bg-gray-600 cursor-pointer'}`}
                   >
-                    <div className={`${iconColorClass} drop-shadow-[2px_2px_0px_black]`}>
+                    <div className={`${isUnlocked ? iconColorClass : 'text-gray-500'} drop-shadow-[2px_2px_0px_black]`}>
                       <PixelIcon type={challenge.iconType} />
                     </div>
                   </motion.button>
 
-                  <div className="mt-4 px-2 py-1 text-center text-base md:text-lg font-bold bg-black/60 rounded text-gray-100 border-2 border-transparent" style={{ fontSize: '16px' }}>
+                  <div className={`mt-4 px-2 py-1 text-center text-base md:text-lg font-bold bg-black/60 rounded border-2 border-transparent ${isUnlocked ? 'text-gray-100' : 'text-gray-500'}`} style={{ fontSize: '16px' }}>
                     {challenge.title[language]}
+                    {!isUnlocked && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        {language === 'chinese' ? '🔒 已鎖定' : '🔒 Locked'}
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -265,19 +303,29 @@ const PhaseRoadmap2 = ({ language, setLanguage, onSelectChallenge, onClose, onOp
 
         <div className="mt-6 h-16 flex justify-center items-center">
           <AnimatePresence mode="wait">
-            {selectedChallengeId ? (
-              <motion.button
-                key="confirm-btn"
-                initial={{ opacity: 0, y: 10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0 }}
-                onClick={handleStart}
-                disabled={isStartingChallenge}
-                className="bg-yellow-400 text-black border-4 border-black px-12 py-3 font-black text-lg tracking-widest hover:bg-yellow-300 shadow-[4px_4px_0px_rgba(0,0,0,0.5)]"
-              >
-                {isStartingChallenge ? 'LOADING...' : (language === 'chinese' ? '開始冒險' : 'START MISSION')}
-              </motion.button>
-            ) : (
+            {selectedChallengeId ? (() => {
+              const selectedChallenge = challenges.find(c => c.id === selectedChallengeId);
+              const isSelectedUnlocked = selectedChallenge ? isChallengeUnlocked(selectedChallenge) : false;
+              
+              return (
+                <motion.button
+                  key="confirm-btn"
+                  initial={{ opacity: 0, y: 10 }} 
+                  animate={{ opacity: 1, y: 0 }} 
+                  exit={{ opacity: 0 }}
+                  onClick={handleStart}
+                  disabled={isStartingChallenge || !isSelectedUnlocked}
+                  className={`border-4 border-black px-12 py-3 font-black text-lg tracking-widest shadow-[4px_4px_0px_rgba(0,0,0,0.5)]
+                    ${isSelectedUnlocked 
+                      ? 'bg-yellow-400 text-black hover:bg-yellow-300 cursor-pointer' 
+                      : 'bg-gray-500 text-gray-300 cursor-not-allowed'}`}
+                >
+                  {isStartingChallenge ? 'LOADING...' : 
+                   !isSelectedUnlocked ? (language === 'chinese' ? '🔒 已鎖定' : '🔒 LOCKED') :
+                   (language === 'chinese' ? '開始冒險' : 'START MISSION')}
+                </motion.button>
+              );
+            })() : (
               <motion.div 
                 initial={{ opacity: 0 }} 
                 animate={{ opacity: 1 }} 

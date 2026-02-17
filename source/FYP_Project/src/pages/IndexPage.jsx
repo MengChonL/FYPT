@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import CurvedLoop from '../components/CurvedLoop';
 import ConsentModal from '../components/ConsentModal';
 import SplashCursor from '../components/SplashCursor';
+import { useGame } from '../context/GameContext';
+import { createUser, loginByUsername } from '../api';
 
 import gameIcon from '../assets/gameicon.png';
 
@@ -105,16 +107,106 @@ const HaloStartButton = ({ onStart }) => {
 
 const IndexPage = () => {
   const navigate = useNavigate();
+  const { setUser, setLanguage } = useGame();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const [loginError, setLoginError] = useState('');
   
   const handleEnter = () => {
+    // 每次都要求用戶登入（輸入用戶名）
     setIsModalOpen(true);
   };
 
-  const handleConsent = (consentData) => {
+  const handleConsent = async (consentData) => {
     console.log('用戶同意數據:', consentData);
-    // 這裡可以添加額外的處理邏輯
-    navigate('/game');
+    setIsCreatingUser(true);
+    setLoginError('');
+    
+    try {
+      // 調用 API 創建用戶
+      const consentGiven = consentData.dataConsent === 'agree';
+      const hasExperience = consentData.web3Experience === 'yes';
+      const userData = await createUser(
+        consentData.userName || 'Anonymous', 
+        consentData.language || 'chinese',
+        consentGiven,
+        hasExperience
+      );
+      
+      console.log('✅ 用戶創建成功:', userData);
+      
+      // 存儲用戶 ID 到 GameContext
+      if (userData && userData.user_id) {
+        setUser(userData.user_id);
+        setLanguage(consentData.language || 'chinese');
+        
+        // 存儲額外的用戶資訊到 localStorage
+        localStorage.setItem('fyp_user_data', JSON.stringify({
+          userId: userData.user_id,
+          username: userData.username,
+          web3Experience: consentData.web3Experience,
+          dataConsent: consentData.dataConsent,
+          createdAt: userData.created_at
+        }));
+      }
+      
+      // 導航到遊戲頁面
+      navigate('/game');
+    } catch (error) {
+      console.error('❌ 創建用戶失敗:', error);
+      if (error.message.includes('409') || error.message.includes('already exists')) {
+        setLoginError('用戶名已存在，請選擇其他名稱或使用「已有賬戶登入」');
+      } else {
+        // 即使失敗也讓用戶繼續遊玩（匿名模式）
+        navigate('/game');
+      }
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
+  // 處理已有賬戶登入
+  const handleLogin = async (loginData) => {
+    console.log('用戶登入:', loginData);
+    setIsCreatingUser(true);
+    setLoginError('');
+    
+    try {
+      const userData = await loginByUsername(loginData.username);
+      
+      console.log('✅ 用戶登入成功:', userData);
+      
+      if (userData && userData.user_id) {
+        setUser(userData.user_id);
+        // 優先使用資料庫中存儲的語言偏好
+        const userLanguage = userData.preferred_language || 'chinese';
+        setLanguage(userLanguage);
+        
+        // 存儲用戶資訊到 localStorage
+        localStorage.setItem('fyp_user_data', JSON.stringify({
+          userId: userData.user_id,
+          username: userData.username,
+          createdAt: userData.created_at
+        }));
+        localStorage.setItem('preferredLanguage', userLanguage);
+      }
+      
+      // 導航到遊戲頁面
+      navigate('/game');
+    } catch (error) {
+      console.error('❌ 登入失敗:', error);
+      if (error.message.includes('404') || error.message.includes('not found')) {
+        setLoginError(loginData.language === 'chinese' 
+          ? '找不到此用戶名，請確認輸入或創建新賬戶' 
+          : 'Username not found. Please check your input or create a new account.');
+      } else {
+        setLoginError(loginData.language === 'chinese' 
+          ? '登入失敗，請稍後再試' 
+          : 'Login failed. Please try again later.');
+      }
+    } finally {
+      setIsCreatingUser(false);
+    }
   };
 
   const handleCloseModal = () => {
@@ -148,13 +240,25 @@ const IndexPage = () => {
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ type: "spring", stiffness: 100, delay: 1 }}
-        className="z-20 mb-16"
+        className="z-20 mb-16 flex flex-col items-center"
         style={{ 
           marginTop: '-300px', // 向上調整更多位置
           transform: 'translateY(-300px)' // 額外的 Y 軸調整
         }}
       >
         <HaloStartButton onStart={handleEnter} />
+        
+        {/* 深色模式提示 */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.5 }}
+          className="mt-8 px-4 py-2 rounded-lg bg-yellow-500/20 border border-yellow-500/50 backdrop-blur-sm"
+        >
+          <p className="text-sm text-yellow-300 text-center font-medium">
+            💡 提示：請關閉深色模式，以獲得更好的遊戲體驗
+          </p>
+        </motion.div>
       </motion.div>
 
       {/* --- 底部資訊 --- */}
@@ -172,6 +276,7 @@ const IndexPage = () => {
         isOpen={isModalOpen}
         onClose={handleCloseModal}
         onConsent={handleConsent}
+        onLogin={handleLogin}
       />
 
       {/* 背景流體效果 - 只在模態框關閉時顯示 */}

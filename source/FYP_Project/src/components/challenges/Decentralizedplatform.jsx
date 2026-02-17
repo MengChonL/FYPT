@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useGame } from '../../context/GameContext';
+import { useAttemptTracking } from '../../hooks/useAttemptTracking';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
 import PhaseRoadmap from '../PhaseRoadmap';
@@ -8,13 +10,15 @@ import BrowserFrame from './BrowserFrame';
 import UniswapLogo from '../../assets/Uniswap.png';
 import DEXclaimImage from '../../assets/DEXclaim.png';
 
-const Decentralizedplatform = ({ config }) => {
+const Decentralizedplatform = ({ config, language: propLanguage }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { getPhaseByScenarioCode, completeScenarioAndUnlockNext } = useGame();
+  const { startTracking, recordStageError } = useAttemptTracking(config?.id);
   const [view, setView] = useState('map'); // 'map' | 'intro' | 'challenge'
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [language, setLanguage] = useState('chinese');
+  const [language, setLanguage] = useState(propLanguage || 'chinese');
   const [stage, setStage] = useState(1); // 1: Connection Question, 2: Transaction Receipt UI
   
   // Stage 1: Uniswap Connection Question State
@@ -25,13 +29,22 @@ const Decentralizedplatform = ({ config }) => {
   const [selectedAnomalies, setSelectedAnomalies] = useState([]);
   const [anomalyError, setAnomalyError] = useState('');
   
+  // Track if any stage had errors (for final is_success calculation)
+  const [hasAnyStageError, setHasAnyStageError] = useState(false);
+  
   // Item Reminder State
   const [showItemReminder, setShowItemReminder] = useState(false);
   const [openBackpack, setOpenBackpack] = useState(false);
+  const [autoOpenItemIndex, setAutoOpenItemIndex] = useState(null); // 自動打開的道具索引
 
   // 初始化：路由变化时重置状态
   useEffect(() => {
-    setView('map');
+    // 如果從上一關跳轉過來，直接顯示 intro 頁面，跳過 roadmap
+    if (location.state?.skipToIntro) {
+      setView('intro');
+    } else {
+      setView('map');
+    }
     setShowResult(false);
     setIsCorrect(false);
     setStage(1);
@@ -41,6 +54,8 @@ const Decentralizedplatform = ({ config }) => {
     setAnomalyError('');
     setShowItemReminder(false);
     setOpenBackpack(false);
+    setAutoOpenItemIndex(null);
+    setHasAnyStageError(false);
   }, [location.pathname, config]);
 
   if (!config) {
@@ -52,10 +67,22 @@ const Decentralizedplatform = ({ config }) => {
   }
 
   // 处理下一关导航
-  const handleNextLevel = () => {
+  const handleNextLevel = async () => {
+    // 記錄答題結果：如果任何 stage 有錯誤，is_success 為 false，但仍然更新進度
+    if (config?.id) {
+      const finalSuccess = isCorrect && !hasAnyStageError;
+      // 即使失敗也要更新進度到下一關
+      const errorDetails = finalSuccess ? null : { force_progress_update: true };
+      await completeScenarioAndUnlockNext(config.id, config.nextLevel, finalSuccess, errorDetails);
+    }
+    
     if (config?.nextLevel) {
-      const phase = config.nextLevel.split('-')[0];
-      navigate(`/challenge/${phase}/${config.nextLevel}`);
+      const phase = getPhaseByScenarioCode(config.nextLevel);
+      if (phase) {
+        navigate(`/challenge/${phase}/${config.nextLevel}`, { state: { skipToIntro: true } });
+      } else {
+        console.error('Cannot find phase for scenario:', config.nextLevel);
+      }
     } else {
       // 如果没有下一关，返回游戏大厅
       navigate('/game');
@@ -64,7 +91,9 @@ const Decentralizedplatform = ({ config }) => {
 
   // 处理 roadmap 点击
   const handleStartLevel = (stepId) => {
-    if (stepId === 'dex' || stepId === 'phase1-6') setView('intro');
+    if (stepId === 'dex' || stepId === 'phase1-6') {
+      setView('intro');
+    }
   };
 
   // Roadmap 步骤配置
@@ -134,8 +163,13 @@ const Decentralizedplatform = ({ config }) => {
             <button
               onClick={() => {
                 setShowItemReminder(false);
+                // 自動打開「去中心化交易平台指南」（items[3]）
+                setAutoOpenItemIndex(3);
                 setOpenBackpack(true);
-                setTimeout(() => setOpenBackpack(false), 100);
+                setTimeout(() => {
+                  setOpenBackpack(false);
+                  setAutoOpenItemIndex(null);
+                }, 100);
               }}
               className="flex-1 py-4 bg-purple-200 hover:bg-purple-300 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] transform hover:scale-[1.02]"
             >
@@ -157,7 +191,7 @@ const Decentralizedplatform = ({ config }) => {
   };
 
   // 检查答案选择
-  const checkAnswerSelection = () => {
+  const checkAnswerSelection = async () => {
     if (!selectedAnswer) {
       setAnswerError(language === 'chinese' ? '請選擇一個答案' : 'Please select an answer');
       setShowResult(true);
@@ -176,6 +210,18 @@ const Decentralizedplatform = ({ config }) => {
         ? '提供助記詞等於提供整個錢包的操控權，騙徒有機會隨時可以取走你所有錢包上的存款，所以釣魚網站都會以這種方式欺騙用戶連接錢包。'
         : 'Providing mnemonic phrases equals giving full control of your wallet. Scammers can take all your deposits at any time, which is why phishing sites use this method to trick users into connecting their wallets.');
       setShowResult(true);
+      // 記錄失敗 - Stage 1 選擇了助記詞（不結束 attempt）
+      if (config?.id) {
+        setHasAnyStageError(true);
+        await recordStageError({
+          error_type: 'wrong_connection_method',
+          stage: 1,
+          stage_name: 'Connection Method Selection',
+          user_selected: 'mnemonic',
+          correct_answer: 'direct',
+          description: 'Stage 1: User chose mnemonic phrase connection method which is dangerous'
+        });
+      }
     } else {
       // selectedAnswer === 'sign'
       setIsCorrect(false);
@@ -183,6 +229,18 @@ const Decentralizedplatform = ({ config }) => {
         ? '連接去中心化平台時，只需要直接連接即可告訴平台你的錢包地址，不需要簽署任何合同。只有再進行交易或者其他操作的時候才需要簽署授權合同。'
         : 'When connecting to a decentralized platform, you only need to connect directly to tell the platform your wallet address. No signature is required. Signatures are only needed when performing transactions or other operations.');
       setShowResult(true);
+      // 記錄失敗 - Stage 1 選擇了簽署合同（不結束 attempt）
+      if (config?.id) {
+        setHasAnyStageError(true);
+        await recordStageError({
+          error_type: 'wrong_connection_method',
+          stage: 1,
+          stage_name: 'Connection Method Selection',
+          user_selected: 'sign',
+          correct_answer: 'direct',
+          description: 'Stage 1: User chose signature method which is not required for connection'
+        });
+      }
     }
   };
 
@@ -208,7 +266,7 @@ const Decentralizedplatform = ({ config }) => {
   };
 
   // 检查异常项选择结果
-  const checkAnomalySelection = () => {
+  const checkAnomalySelection = async () => {
     if (selectedAnomalies.length === 0) {
       setAnomalyError(language === 'chinese' ? '請至少選擇一個異常項目' : 'Please select at least one anomaly');
       setShowResult(true);
@@ -238,6 +296,23 @@ const Decentralizedplatform = ({ config }) => {
         ? '請仔細檢查交易收據中的異常項目。注意：貨幣名稱（USDC.E模仿USDC）、貨幣金額（異常大）、來源（不知名收款）、合約號碼（十六進制顯示有斷點）、交易哈希（包含域名用-等模糊）、貨幣附帶域名（uniswap域名錯誤）。唯一正常的是GAS費用。'
         : 'Please carefully check the anomalies in the transaction receipt. Note: token name (USDC.E mimics USDC), token amount (abnormally large), source (unknown payment), contract address (hexadecimal display with breaks), transaction hash (contains domain with - etc.), token domain (incorrect uniswap domain). The only normal item is gas fee.');
       setShowResult(true);
+      
+      // 記錄失敗 - Stage 2 異常項識別錯誤（不結束 attempt）
+      if (config?.id) {
+        setHasAnyStageError(true);
+        const missedAnomalies = correctAnomalies.filter(id => !selectedSet.has(id));
+        const wronglySelected = selectedAnomalies.filter(id => !correctSet.has(id));
+        await recordStageError({
+          error_type: 'wrong_anomaly_identification',
+          stage: 2,
+          stage_name: 'Transaction Receipt Anomaly Detection',
+          user_selected: selectedAnomalies,
+          correct_answer: correctAnomalies,
+          missed_anomalies: missedAnomalies,
+          wrongly_selected: wronglySelected,
+          description: `Stage 2: Missed ${missedAnomalies.length} anomalies, wrongly selected ${wronglySelected.length} items`
+        });
+      }
     }
   };
 
@@ -619,7 +694,10 @@ const Decentralizedplatform = ({ config }) => {
           </div>
         </div>
         <button 
-          onClick={() => setShowItemReminder(true)}
+          onClick={async () => {
+            await startTracking(); // 開始計時
+            setShowItemReminder(true);
+          }}
           className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] transform hover:scale-[1.02]"
         >
           {introData?.btn || (language === 'chinese' ? '開始挑戰' : 'Start Challenge')}
@@ -635,6 +713,7 @@ const Decentralizedplatform = ({ config }) => {
       containerMaxWidth="100vw"
       containerMaxHeight="100vh"
       openBackpack={openBackpack}
+      autoOpenItemIndex={autoOpenItemIndex}
     >
       {/* 道具提醒消息框 */}
       {renderItemReminder()}

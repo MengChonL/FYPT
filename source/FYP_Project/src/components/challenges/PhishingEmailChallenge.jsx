@@ -1,22 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useGame } from '../../context/GameContext';
+import { useAttemptTracking } from '../../hooks/useAttemptTracking';
 import BrowserFrame from './BrowserFrame';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
 import PhaseRoadmap from '../PhaseRoadmap';
 
 // === 1. 圖片引入 ===
-import GoogleFavicon from '../../assets/Google__G__logo.png';
+import GoogleFavicon from '../../assets/Google__G__logo.png'; 
 import DiscordFavicon from '../../assets/Discordicon.png';
 import XFavicon from '../../assets/Xicon.png';
 import GoogleFullLogo from '../../assets/Google_logo.png'; 
 import Fox from '../../assets/MetaMask_Fox.png';
 
-const PhishingEmailChallenge = ({ config }) => {
+const PhishingEmailChallenge = ({ config, language: propLanguage }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [language, setLanguage] = useState('chinese');
+  const { getPhaseByScenarioCode, completeScenarioAndUnlockNext } = useGame();
+  const { startTracking, recordStageError } = useAttemptTracking(config?.id);
+  const [language, setLanguage] = useState(propLanguage || 'chinese');
   const [view, setView] = useState('map'); 
   const [activeTab, setActiveTab] = useState('google'); 
   const [showResult, setShowResult] = useState(false);
@@ -24,6 +28,8 @@ const PhishingEmailChallenge = ({ config }) => {
   const [source, setSource] = useState('google'); // 跟踪来源：google, discord, x
   const [showItemReminder, setShowItemReminder] = useState(false); // 显示道具提醒
   const [openBackpack, setOpenBackpack] = useState(false); // 控制打开背包
+  const [autoOpenItemIndex, setAutoOpenItemIndex] = useState(null); // 自動打開的道具索引
+  const [hasAnyStageError, setHasAnyStageError] = useState(false); // Track if any error occurred
   
   const t = config?.content?.[language];
   const introData = config?.intro?.[language];
@@ -135,34 +141,72 @@ const PhishingEmailChallenge = ({ config }) => {
   const currentContent = content[language] || content.chinese;
 
   useEffect(() => {
-    setView('map');
+    // 如果從上一關跳轉過來，直接顯示 intro 頁面，跳過 roadmap
+    if (location.state?.skipToIntro) {
+      setView('intro');
+    } else {
+      setView('map');
+    }
     setShowResult(false);
     setShowItemReminder(false);
     setOpenBackpack(false);
+    setAutoOpenItemIndex(null);
+    setHasAnyStageError(false);
   }, [location.pathname]);
 
   const handleStartLevel = (stepId) => { if (stepId === 'search') setView('intro'); };
   
   // 点击正确的官方链接
-  const handleSelectOfficial = (sourceType = 'google') => {
+  const handleSelectOfficial = async (sourceType = 'google') => {
     setIsCorrect(true);
     setSource(sourceType);
     setShowResult(true);
   };
   
   // 点击错误的钓鱼链接
-  const handleSelectPhishing = (type) => {
+  const handleSelectPhishing = async (type) => {
     setIsCorrect(false);
     setShowResult(true);
+    
+    // 記錄失敗：用戶點擊了釣魚連結（不結束 attempt）
+    if (config?.id) {
+      setHasAnyStageError(true);
+      await recordStageError({
+        error_type: 'clicked_phishing_link',
+        phishing_type: type,
+        description: language === 'chinese' 
+          ? `用戶點擊了釣魚連結 (${type})` 
+          : `User clicked phishing link (${type})`
+      });
+    }
   };
 
   // 处理下一关导航
-  const handleNextLevel = () => {
+  const handleNextLevel = async () => {
+    console.log('🎮 handleNextLevel called');
+    console.log('📊 isCorrect:', isCorrect);
+    console.log('📊 hasAnyStageError:', hasAnyStageError);
+    console.log('📊 config:', config);
+    console.log('📊 config.id:', config?.id);
+    console.log('📊 config.nextLevel:', config?.nextLevel);
+    
+    // 記錄答題結果：如果有錯誤，is_success 為 false，但仍然更新進度
+    if (config?.id) {
+      const finalSuccess = isCorrect && !hasAnyStageError;
+      console.log('✅ Recording result, finalSuccess:', finalSuccess);
+      // 即使失敗也要更新進度到下一關
+      const errorDetails = finalSuccess ? null : { force_progress_update: true };
+      await completeScenarioAndUnlockNext(config.id, config.nextLevel, finalSuccess, errorDetails);
+      console.log('✅ Progress saved');
+    }
+    
     if (config?.nextLevel) {
-      // 根据 nextLevel 确定路由路径
-      // nextLevel 格式应该是 'phase1-2'，需要转换为 '/challenge/phase1/phase1-2'
-      const phase = config.nextLevel.split('-')[0]; // 提取 'phase1'
-      navigate(`/challenge/${phase}/${config.nextLevel}`);
+      const phase = getPhaseByScenarioCode(config.nextLevel);
+      if (phase) {
+        navigate(`/challenge/${phase}/${config.nextLevel}`, { state: { skipToIntro: true } });
+      } else {
+        console.error('Cannot find phase for scenario:', config.nextLevel);
+      }
     }
   };
 
@@ -195,7 +239,10 @@ const PhishingEmailChallenge = ({ config }) => {
             </div>
           </div>
           <button 
-            onClick={() => setShowItemReminder(true)}
+            onClick={async () => {
+              await startTracking(); // 開始計時
+              setShowItemReminder(true);
+            }}
             className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] transform hover:scale-[1.02]"
           >
             {introData?.btn || currentContent.intro.btn}
@@ -663,9 +710,14 @@ const PhishingEmailChallenge = ({ config }) => {
             <button
               onClick={() => {
                 setShowItemReminder(false);
+                // 設置自動打開 item1（索引 0）
+                setAutoOpenItemIndex(0);
                 setOpenBackpack(true);
-                // 重置 openBackpack 状态，以便下次可以再次打开
-                setTimeout(() => setOpenBackpack(false), 100);
+                // 重置狀態，以便下次可以再次打開
+                setTimeout(() => {
+                  setOpenBackpack(false);
+                  setAutoOpenItemIndex(null);
+                }, 100);
               }}
               className="flex-1 py-4 bg-purple-200 hover:bg-purple-300 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] transform hover:scale-[1.02]"
             >
@@ -694,6 +746,7 @@ const PhishingEmailChallenge = ({ config }) => {
       containerMaxWidth="100vw"
       containerMaxHeight="100vh"
       openBackpack={openBackpack}
+      autoOpenItemIndex={autoOpenItemIndex}
     >
       {/* 道具提醒消息框 */}
       {renderItemReminder()}

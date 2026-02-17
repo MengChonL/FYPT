@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useGame } from '../../context/GameContext';
+import { useAttemptTracking } from '../../hooks/useAttemptTracking';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
 import BrowserFrame from './BrowserFrame';
@@ -13,15 +15,24 @@ import Permission02 from '../../assets/permission02.png';
 import Permission03 from '../../assets/permission03.png';
 import Permission04 from '../../assets/permission04.png';
 
-const JudgeAuth = ({ config }) => {
+const JudgeAuth = ({ config, language: propLanguage }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { getPhaseByScenarioCode, completeScenarioAndUnlockNext } = useGame();
+  const { startTracking, recordStageError } = useAttemptTracking(config?.id);
   const [view, setView] = useState('intro');
-  const [language, setLanguage] = useState('chinese');
+  const [language, setLanguage] = useState(propLanguage || 'chinese');
   const [openBackpack, setOpenBackpack] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [currentScenarioIndex, setCurrentScenarioIndex] = useState(0);
+
+  // 同步外部語言變化
+  useEffect(() => {
+    if (propLanguage) {
+      setLanguage(propLanguage);
+    }
+  }, [propLanguage]);
 
   // 场景数据
   const scenarios = [
@@ -33,7 +44,7 @@ const JudgeAuth = ({ config }) => {
         english: 'Scenario 1: Uniswap Website'
       },
       description: {
-        chinese: '你在Google搜索中找到了一個Uniswap網站，想要將 1,000 USDC 兌換成 ETH。在兌換之前出現了一個授權內容，請你判斷一下是合法還是釣魚',
+        chinese: '你在Google搜索中找到了一個Uniswap網站，想要將 317 USDC 兌換成 ETH。在兌換之前出現了一個授權內容，請你判斷一下是合法還是釣魚',
         english: 'You found a Uniswap website in Google search and want to swap 1,000 USDC for ETH. Before the swap, a authoriz ation request appeared, please judge whether it is legitimate or phishing.'
       },
       authorization: {
@@ -262,17 +273,23 @@ const JudgeAuth = ({ config }) => {
   }
 
   // 处理下一关导航
-  const handleNextLevel = () => {
+  const handleNextLevel = async () => {
+    console.log('🎮 JudgeAuth handleNextLevel called');
+    console.log('📊 isCorrect:', isCorrect);
+    console.log('📊 config.id:', config?.id);
+    console.log('📊 config.nextLevel:', config?.nextLevel);
+    
+    // 記錄成功答題並進入下一關
+    if (config?.id && config?.nextLevel) {
+      console.log('✅ Recording success and saving progress...');
+      await completeScenarioAndUnlockNext(config.id, config.nextLevel, true, null);
+    }
     if (config?.nextLevel) {
-      const parts = config.nextLevel.split('-');
-      if (parts[0].startsWith('phase')) {
-        // 提取 phase（如 'phase2'）
-        const phase = parts[0];
-        // 使用完整的 nextLevel 作为 id（如 'phase2-danger-auth'）
-        navigate(`/challenge/${phase}/${config.nextLevel}`);
+      const phase = getPhaseByScenarioCode(config.nextLevel);
+      if (phase) {
+        navigate(`/challenge/${phase}/${config.nextLevel}`, { state: { skipToIntro: true } });
       } else {
-        const currentPhase = location.pathname.split('/')[2] || 'phase2';
-        navigate(`/challenge/${currentPhase}/${config.nextLevel}`);
+        console.error('Cannot find phase for scenario:', config.nextLevel);
       }
     }
   };
@@ -287,7 +304,7 @@ const JudgeAuth = ({ config }) => {
   };
 
   // 检查答案
-  const checkAnswer = () => {
+  const checkAnswer = async () => {
     // 所有題目都必須已作答
     const allAnswered = answers.every((ans) => ans !== null);
     if (!allAnswered) return;
@@ -298,6 +315,26 @@ const JudgeAuth = ({ config }) => {
 
     setIsCorrect(allCorrect);
     setShowResult(true);
+    
+    // 記錄失敗：答案判斷錯誤（不結束 attempt，允許重試）
+    if (!allCorrect && config?.id) {
+      const wrongAnswers = scenarios.map((scenario, index) => ({
+        scenario_index: index,
+        user_answer: answers[index],
+        correct_answer: scenario.type,
+        is_correct: answers[index] === scenario.type
+      })).filter(a => !a.is_correct);
+      
+      await recordStageError({
+        error_type: 'wrong_authorization_judgment',
+        wrong_answers: wrongAnswers,
+        total_scenarios: scenarios.length,
+        correct_count: scenarios.length - wrongAnswers.length,
+        description: language === 'chinese' 
+          ? `判斷錯誤 ${wrongAnswers.length} 題` 
+          : `Got ${wrongAnswers.length} questions wrong`
+      });
+    }
   };
 
   // 切换场景
@@ -361,7 +398,10 @@ const JudgeAuth = ({ config }) => {
             )}
           </div>
           <button 
-            onClick={() => setView('challenge')}
+            onClick={async () => {
+              await startTracking(); // 開始計時
+              setView('challenge');
+            }}
             className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] transform hover:scale-[1.02]"
           >
             {introData?.btn || (language === 'chinese' ? '開始挑戰' : 'Start Challenge')}
@@ -439,19 +479,29 @@ const JudgeAuth = ({ config }) => {
                     onClick={() => handleSelectAnswer('legit')}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`p-6 rounded-xl transition-all transform text-white ${
+                    className={`p-6 rounded-xl transition-all transform text-white relative overflow-hidden ${
                       selectedAnswer === 'legit'
-                        ? 'border-4 border-white'
-                        : 'border-2 border-transparent hover:border-gray-400'
+                        ? 'bg-gradient-to-br from-green-600 to-green-700 border-4 border-green-400'
+                        : 'bg-black border-2 border-transparent hover:border-gray-400'
                     }`}
-                    style={{
+                    style={selectedAnswer === 'legit' ? {
+                      boxShadow: '0 0 30px rgba(34, 197, 94, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2)',
+                      animation: 'pulse-glow-judge 2s ease-in-out infinite'
+                    } : {
                       backgroundColor: '#000000'
                     }}
                   >
+                    {selectedAnswer === 'legit' && (
+                      <div className="absolute top-2 right-2">
+                        <svg className="w-8 h-8 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
                     <div className="text-xl font-bold mb-2">
                       {language === 'chinese' ? '✓ 合法' : '✓ Legitimate'}
                     </div>
-                    <div className="text-sm opacity-90">
+                    <div className={`text-sm ${selectedAnswer === 'legit' ? 'text-white opacity-95' : 'opacity-90'}`}>
                       {language === 'chinese' 
                         ? '正規平台的授權請求'
                         : 'Legitimate platform authorization'}
@@ -462,19 +512,29 @@ const JudgeAuth = ({ config }) => {
                     onClick={() => handleSelectAnswer('phishing')}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className={`p-6 rounded-xl transition-all transform text-white ${
+                    className={`p-6 rounded-xl transition-all transform text-white relative overflow-hidden ${
                       selectedAnswer === 'phishing'
-                        ? 'border-4 border-white'
-                        : 'border-2 border-transparent hover:border-gray-400'
+                        ? 'bg-gradient-to-br from-red-600 to-red-700 border-4 border-red-400'
+                        : 'bg-black border-2 border-transparent hover:border-gray-400'
                     }`}
-                    style={{
+                    style={selectedAnswer === 'phishing' ? {
+                      boxShadow: '0 0 30px rgba(239, 68, 68, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2)',
+                      animation: 'pulse-glow-red-judge 2s ease-in-out infinite'
+                    } : {
                       backgroundColor: '#000000'
                     }}
                   >
+                    {selectedAnswer === 'phishing' && (
+                      <div className="absolute top-2 right-2">
+                        <svg className="w-8 h-8 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    )}
                     <div className="text-xl font-bold mb-2">
                       {language === 'chinese' ? '⚠ 釣魚' : '⚠ Phishing'}
                     </div>
-                    <div className="text-sm opacity-90">
+                    <div className={`text-sm ${selectedAnswer === 'phishing' ? 'text-white opacity-95' : 'opacity-90'}`}>
                       {language === 'chinese' 
                         ? '可疑或惡意的授權請求'
                         : 'Suspicious or malicious authorization'}
@@ -555,13 +615,32 @@ const JudgeAuth = ({ config }) => {
   };
 
   return (
-    <ChallengeTemplate
-      language={language}
-      setLanguage={setLanguage}
-      containerMaxWidth="100vw"
-      containerMaxHeight="100vh"
-      openBackpack={openBackpack}
-    >
+    <>
+      <style>{`
+        @keyframes pulse-glow-judge {
+          0%, 100% {
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 50px rgba(34, 197, 94, 1), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+        }
+        @keyframes pulse-glow-red-judge {
+          0%, 100% {
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 50px rgba(239, 68, 68, 1), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+        }
+      `}</style>
+      <ChallengeTemplate
+        language={language}
+        setLanguage={setLanguage}
+        containerMaxWidth="100vw"
+        containerMaxHeight="100vh"
+        openBackpack={openBackpack}
+      >
       {/* 任务介绍视图 */}
       {view === 'intro' && (
         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -645,7 +724,8 @@ const JudgeAuth = ({ config }) => {
           nextLevelButtonText={language === 'chinese' ? '下一關' : 'Next Level'}
         />
       )}
-    </ChallengeTemplate>
+      </ChallengeTemplate>
+    </>
   );
 };
 

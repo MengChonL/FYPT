@@ -1,26 +1,81 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { checkUsernameExists } from '../api';
 
-const ConsentModal = ({ isOpen, onClose, onConsent }) => {
+const ConsentModal = ({ isOpen, onClose, onConsent, onLogin }) => {
   const [web3Experience, setWeb3Experience] = useState(null);
   const [dataConsent, setDataConsent] = useState(null);
   const [language, setLanguage] = useState('chinese');
   const [userName, setUserName] = useState('');
+  const [isLoginMode, setIsLoginMode] = useState(false); // 新增：登入模式
+  const [loginUsername, setLoginUsername] = useState(''); // 登入用戶名
+  const [usernameError, setUsernameError] = useState(''); // 用戶名錯誤訊息
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false); // 正在檢查用戶名
+  const [usernameAvailable, setUsernameAvailable] = useState(null); // 用戶名是否可用
+
+  // 防抖檢查用戶名是否存在
+  useEffect(() => {
+    if (!userName.trim() || isLoginMode) {
+      setUsernameAvailable(null);
+      setUsernameError('');
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      setIsCheckingUsername(true);
+      try {
+        const result = await checkUsernameExists(userName.trim());
+        if (result.exists) {
+          setUsernameAvailable(false);
+          setUsernameError(language === 'chinese' 
+            ? '❌ 此用戶名已被使用，請選擇其他名稱' 
+            : '❌ This username is already taken, please choose another');
+        } else {
+          setUsernameAvailable(true);
+          setUsernameError('');
+        }
+      } catch (error) {
+        console.error('檢查用戶名失敗:', error);
+        setUsernameAvailable(null);
+      } finally {
+        setIsCheckingUsername(false);
+      }
+    }, 500); // 500ms 防抖
+
+    return () => clearTimeout(timeoutId);
+  }, [userName, language, isLoginMode]);
 
   const handleSubmit = () => {
-    if (web3Experience !== null && dataConsent !== null && userName.trim()) {
+    if (web3Experience !== null && dataConsent !== null && userName.trim() && usernameAvailable !== false) {
       // 將選擇結果存儲到 localStorage（前端存儲）
       localStorage.setItem('web3Experience', web3Experience);
       localStorage.setItem('dataConsent', dataConsent);
       localStorage.setItem('userName', userName.trim());
       localStorage.setItem('consentTimestamp', new Date().toISOString());
+      localStorage.setItem('preferredLanguage', language);
       
-      onConsent({ web3Experience, dataConsent, userName: userName.trim() });
+      onConsent({ 
+        web3Experience, 
+        dataConsent, 
+        userName: userName.trim(),
+        language  // 傳遞語言設定
+      });
       onClose();
     }
   };
 
-  const isFormValid = web3Experience !== null && dataConsent !== null && userName.trim();
+  const handleLogin = () => {
+    if (loginUsername.trim()) {
+      setUsernameError('');
+      onLogin({ 
+        username: loginUsername.trim(),
+        language 
+      });
+    }
+  };
+
+  const isFormValid = web3Experience !== null && dataConsent !== null && userName.trim() && usernameAvailable === true;
+  const isLoginValid = loginUsername.trim();
 
   return (
     <AnimatePresence>
@@ -46,56 +101,42 @@ const ConsentModal = ({ isOpen, onClose, onConsent }) => {
                 boxShadow: '0 0 20px rgba(59, 130, 246, 0.3)'
               }}
             >
-                {/* 語言切換 */}
-                <div className="flex justify-end mb-4">
-                  <div className="flex gap-2">
+                {/* 偏好語言選擇 / Preferred Language Selection */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-semibold text-cyan-300 mb-3">
+                    偏好語言 / Preferred Language <span className="text-red-400">*</span>
+                  </h3>
+                  <div className="flex gap-4">
                     <button
                       onClick={() => setLanguage('chinese')}
                       style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
+                        padding: '12px 32px',
+                        borderRadius: '8px',
                         transition: 'all 0.3s ease',
-                        backgroundColor: language === 'chinese' ? '#22d3ee' : 'transparent',
-                        color: language === 'chinese' ? '#ffffff' : '#9ca3af',
-                        border: 'none',
+                        backgroundColor: language === 'chinese' ? '#22d3ee' : '#374151',
+                        color: language === 'chinese' ? '#ffffff' : '#e5e7eb',
+                        border: language === 'chinese' ? '2px solid #22d3ee' : '2px solid #6b7280',
+                        boxShadow: language === 'chinese' ? '0 10px 25px rgba(34, 211, 238, 0.3)' : 'none',
                         cursor: 'pointer',
-                        fontSize: '14px'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (language !== 'chinese') {
-                          e.target.style.color = '#ffffff';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (language !== 'chinese') {
-                          e.target.style.color = '#9ca3af';
-                        }
+                        fontSize: '16px',
+                        fontWeight: 'bold'
                       }}
                     >
                       中文
                     </button>
-                    <span style={{ color: '#6b7280', fontSize: '14px' }}>|</span>
                     <button
                       onClick={() => setLanguage('english')}
                       style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
+                        padding: '12px 32px',
+                        borderRadius: '8px',
                         transition: 'all 0.3s ease',
-                        backgroundColor: language === 'english' ? '#22d3ee' : 'transparent',
-                        color: language === 'english' ? '#ffffff' : '#9ca3af',
-                        border: 'none',
+                        backgroundColor: language === 'english' ? '#22d3ee' : '#374151',
+                        color: language === 'english' ? '#ffffff' : '#e5e7eb',
+                        border: language === 'english' ? '2px solid #22d3ee' : '2px solid #6b7280',
+                        boxShadow: language === 'english' ? '0 10px 25px rgba(34, 211, 238, 0.3)' : 'none',
                         cursor: 'pointer',
-                        fontSize: '14px'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (language !== 'english') {
-                          e.target.style.color = '#ffffff';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (language !== 'english') {
-                          e.target.style.color = '#9ca3af';
-                        }
+                        fontSize: '16px',
+                        fontWeight: 'bold'
                       }}
                     >
                       English
@@ -103,8 +144,126 @@ const ConsentModal = ({ isOpen, onClose, onConsent }) => {
                   </div>
                 </div>
 
-                {/* 中文內容 */}
-                {language === 'chinese' && (
+                {/* 模式切換 - 新用戶 / 已有賬戶 */}
+                <div className="mb-6 flex gap-4">
+                  <button
+                    onClick={() => setIsLoginMode(false)}
+                    style={{
+                      flex: 1,
+                      padding: '12px 24px',
+                      borderRadius: '8px',
+                      transition: 'all 0.3s ease',
+                      backgroundColor: !isLoginMode ? '#10b981' : '#374151',
+                      color: !isLoginMode ? '#ffffff' : '#e5e7eb',
+                      border: !isLoginMode ? '2px solid #10b981' : '2px solid #6b7280',
+                      boxShadow: !isLoginMode ? '0 10px 25px rgba(16, 185, 129, 0.3)' : 'none',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {language === 'chinese' ? '🆕 新用戶註冊' : '🆕 New User Registration'}
+                  </button>
+                  <button
+                    onClick={() => setIsLoginMode(true)}
+                    style={{
+                      flex: 1,
+                      padding: '12px 24px',
+                      borderRadius: '8px',
+                      transition: 'all 0.3s ease',
+                      backgroundColor: isLoginMode ? '#8b5cf6' : '#374151',
+                      color: isLoginMode ? '#ffffff' : '#e5e7eb',
+                      border: isLoginMode ? '2px solid #8b5cf6' : '2px solid #6b7280',
+                      boxShadow: isLoginMode ? '0 10px 25px rgba(139, 92, 246, 0.3)' : 'none',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    {language === 'chinese' ? '🔑 已有賬戶登入' : '🔑 Login with Existing Account'}
+                  </button>
+                </div>
+
+                {/* 已有賬戶登入模式 */}
+                {isLoginMode && (
+                  <div className="space-y-6">
+                    <div 
+                      className="p-6 rounded-lg"
+                      style={{
+                        backgroundColor: '#1f2937',
+                        border: '2px solid #8b5cf6'
+                      }}
+                    >
+                      <h3 className="text-xl font-bold text-purple-400 mb-4">
+                        {language === 'chinese' ? '歡迎回來！' : 'Welcome Back!'}
+                      </h3>
+                      <p className="text-gray-300 mb-4">
+                        {language === 'chinese' 
+                          ? '請輸入您的用戶名稱以繼續遊戲：' 
+                          : 'Please enter your username to continue:'}
+                      </p>
+                      <input
+                        type="text"
+                        value={loginUsername}
+                        onChange={(e) => {
+                          setLoginUsername(e.target.value);
+                          setUsernameError('');
+                        }}
+                        placeholder={language === 'chinese' ? '請輸入您的用戶名稱' : 'Enter your username'}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          borderRadius: '8px',
+                          border: usernameError ? '2px solid #ef4444' : '2px solid #8b5cf6',
+                          backgroundColor: '#374151',
+                          color: '#ffffff',
+                          fontSize: '16px',
+                          fontFamily: 'inherit',
+                          marginBottom: '8px'
+                        }}
+                      />
+                      {usernameError && (
+                        <p className="text-red-400 text-sm mb-4">{usernameError}</p>
+                      )}
+                    </div>
+
+                    {/* 登入按鈕 */}
+                    <div className="flex justify-end gap-4 pt-4">
+                      <button
+                        onClick={onClose}
+                        style={{
+                          padding: '8px 24px',
+                          borderRadius: '8px',
+                          transition: 'all 0.3s ease',
+                          backgroundColor: '#374151',
+                          color: '#e5e7eb',
+                          border: '1px solid #6b7280'
+                        }}
+                      >
+                        {language === 'chinese' ? '取消' : 'Cancel'}
+                      </button>
+                      <button
+                        onClick={handleLogin}
+                        disabled={!isLoginValid}
+                        style={{
+                          padding: '8px 24px',
+                          borderRadius: '8px',
+                          transition: 'all 0.3s ease',
+                          backgroundColor: isLoginValid ? '#8b5cf6' : '#4b5563',
+                          color: isLoginValid ? '#ffffff' : '#9ca3af',
+                          border: '1px solid #6b7280',
+                          boxShadow: isLoginValid ? '0 10px 25px rgba(139, 92, 246, 0.3)' : 'none',
+                          cursor: isLoginValid ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        {language === 'chinese' ? '登入' : 'Login'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 新用戶註冊模式 - 中文內容 */}
+                {!isLoginMode && language === 'chinese' && (
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold text-cyan-400 mb-4">
@@ -126,36 +285,52 @@ const ConsentModal = ({ isOpen, onClose, onConsent }) => {
 
                     <div>
                       <h3 className="text-lg font-semibold text-cyan-300 mb-3">
-                        用戶信息
+                        用戶名稱 <span className="text-red-400">*</span>
                       </h3>
                       <p className="text-gray-300 mb-4">
-                        請輸入您的姓名（可選）：
+                        請輸入您的姓名（必填）：
                       </p>
-                      <input
-                        type="text"
-                        value={userName}
-                        onChange={(e) => setUserName(e.target.value)}
-                        placeholder="請輸入您的姓名"
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          borderRadius: '8px',
-                          border: '2px solid #6b7280',
-                          backgroundColor: '#374151',
-                          color: '#ffffff',
-                          fontSize: '16px',
-                          fontFamily: 'inherit',
-                          marginBottom: '16px'
-                        }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = '#22d3ee';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(34, 211, 238, 0.1)';
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = '#6b7280';
-                          e.target.style.boxShadow = 'none';
-                        }}
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={userName}
+                          onChange={(e) => setUserName(e.target.value)}
+                          placeholder="請輸入您的姓名"
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            paddingRight: '40px',
+                            borderRadius: '8px',
+                            border: usernameAvailable === false ? '2px solid #ef4444' : 
+                                   usernameAvailable === true ? '2px solid #10b981' : 
+                                   userName.trim() ? '2px solid #22d3ee' : '2px solid #ef4444',
+                            backgroundColor: '#374151',
+                            color: '#ffffff',
+                            fontSize: '16px',
+                            fontFamily: 'inherit',
+                            marginBottom: '8px'
+                          }}
+                        />
+                        {isCheckingUsername && (
+                          <span className="absolute right-3 top-3 text-gray-400">⏳</span>
+                        )}
+                        {!isCheckingUsername && usernameAvailable === true && (
+                          <span className="absolute right-3 top-3 text-green-400">✓</span>
+                        )}
+                        {!isCheckingUsername && usernameAvailable === false && (
+                          <span className="absolute right-3 top-3 text-red-400">✗</span>
+                        )}
+                      </div>
+                      {!userName.trim() && (
+                        <p className="text-red-400 text-sm">✱ 此欄位為必填項</p>
+                      )}
+                      {usernameError && (
+                        <p className="text-red-400 text-sm">{usernameError}</p>
+                      )}
+                      {usernameAvailable === true && userName.trim() && (
+                        <p className="text-green-400 text-sm">✓ 用戶名可用</p>
+                      )}
                     </div>
 
                     <div>
@@ -284,8 +459,8 @@ const ConsentModal = ({ isOpen, onClose, onConsent }) => {
                   </div>
                 )}
 
-                {/* 英文內容 */}
-                {language === 'english' && (
+                {/* 新用戶註冊模式 - 英文內容 */}
+                {!isLoginMode && language === 'english' && (
                   <div className="space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold text-cyan-400 mb-4">
@@ -307,36 +482,52 @@ const ConsentModal = ({ isOpen, onClose, onConsent }) => {
 
                     <div>
                       <h3 className="text-lg font-semibold text-cyan-300 mb-3">
-                        User Information
+                        Username <span className="text-red-400">*</span>
                       </h3>
                       <p className="text-gray-300 mb-4">
-                        Please enter your name (optional):
+                        Please enter your name (required):
                       </p>
-                      <input
-                        type="text"
-                        value={userName}
-                        onChange={(e) => setUserName(e.target.value)}
-                        placeholder="Enter your name"
-                        style={{
-                          width: '100%',
-                          padding: '12px 16px',
-                          borderRadius: '8px',
-                          border: '2px solid #6b7280',
-                          backgroundColor: '#374151',
-                          color: '#ffffff',
-                          fontSize: '16px',
-                          fontFamily: 'inherit',
-                          marginBottom: '16px'
-                        }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = '#22d3ee';
-                          e.target.style.boxShadow = '0 0 0 3px rgba(34, 211, 238, 0.1)';
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = '#6b7280';
-                          e.target.style.boxShadow = 'none';
-                        }}
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={userName}
+                          onChange={(e) => setUserName(e.target.value)}
+                          placeholder="Enter your name"
+                          required
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            paddingRight: '40px',
+                            borderRadius: '8px',
+                            border: usernameAvailable === false ? '2px solid #ef4444' : 
+                                   usernameAvailable === true ? '2px solid #10b981' : 
+                                   userName.trim() ? '2px solid #22d3ee' : '2px solid #ef4444',
+                            backgroundColor: '#374151',
+                            color: '#ffffff',
+                            fontSize: '16px',
+                            fontFamily: 'inherit',
+                            marginBottom: '8px'
+                          }}
+                        />
+                        {isCheckingUsername && (
+                          <span className="absolute right-3 top-3 text-gray-400">⏳</span>
+                        )}
+                        {!isCheckingUsername && usernameAvailable === true && (
+                          <span className="absolute right-3 top-3 text-green-400">✓</span>
+                        )}
+                        {!isCheckingUsername && usernameAvailable === false && (
+                          <span className="absolute right-3 top-3 text-red-400">✗</span>
+                        )}
+                      </div>
+                      {!userName.trim() && (
+                        <p className="text-red-400 text-sm">✱ This field is required</p>
+                      )}
+                      {usernameError && (
+                        <p className="text-red-400 text-sm">{usernameError}</p>
+                      )}
+                      {usernameAvailable === true && userName.trim() && (
+                        <p className="text-green-400 text-sm">✓ Username is available</p>
+                      )}
                     </div>
 
                     <div>
@@ -465,7 +656,8 @@ const ConsentModal = ({ isOpen, onClose, onConsent }) => {
                   </div>
                 )}
 
-                {/* 提交按鈕 */}
+                {/* 提交按鈕 - 只在新用戶註冊模式顯示 */}
+                {!isLoginMode && (
                 <div className="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-700">
                   <button
                     onClick={onClose}
@@ -513,6 +705,7 @@ const ConsentModal = ({ isOpen, onClose, onConsent }) => {
                     {language === 'chinese' ? '開始遊戲' : 'Start Game'}
                   </button>
                 </div>
+                )}
             </div>
           </motion.div>
         </motion.div>

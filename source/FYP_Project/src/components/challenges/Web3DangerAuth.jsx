@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import MetaMaskFox from '../../assets/MetaMask_Fox.png';
 import BinanceLogo from '../../assets/BNB.png';
 import CoinbaseLogo from '../../assets/coinbase.png';
 import SequoiaLogo from '../../assets/sequoia.png';
 import A16zLogo from '../../assets/a16z.png';
 import ChallengeResultScreen from './ChallengeResultScreen';
+import ChallengeTemplate from './ChallengeTemplate';
+import { useGame } from '../../context/GameContext';
+import { useAttemptTracking } from '../../hooks/useAttemptTracking';
+import { generateFinalReport as apiGenerateFinalReport } from '../../api';
 
 // ==========================================
 // 0. 樣式定義 (CSS)
@@ -159,6 +164,8 @@ const checkCollision = (strokeBounds, targetId) => {
 const TARGETS = [
   {
     id: 'target-phish-method',
+    category: 'phishing_technique',
+    risk_level: 'critical',
     reasonZh: 'Security Update 應在官網或 App Store/Google Play 更新，而非透過授權更新',
     reasonEn: 'Security updates should be done via official website or App Store/Google Play, not through authorization',
     detailZh: 'Security Update 應該在官網或者 Google Store、App Store 等地方進行更新，而非透過授權更新',
@@ -166,6 +173,8 @@ const TARGETS = [
   },
   {
     id: 'target-phish-gasfee',
+    category: 'ui_deception',
+    risk_level: 'critical',
     reasonZh: '前端顯示連接錢包，但實際是授權內容：Gas Fee 顯示表示這是交易而非連接',
     reasonEn: 'UI shows "connect wallet" but content is authorization: Gas Fee indicates this is a transaction, not connection',
     detailZh: '已發現網站前端顯示連接錢包，實際卻是授權內容',
@@ -173,28 +182,48 @@ const TARGETS = [
   },
   {
     id: 'target-tvl',
+    category: 'fake_data',
+    risk_level: 'high',
     reasonZh: '虛假價格數據：比特幣價格固定不變 (Fake Static Price)',
     reasonEn: 'Fake price data: static BTC price (never updates)',
+    detailZh: '頁面上顯示的比特幣價格為靜態固定數字，與真實市場波動不符，屬於偽造數據的常見手法',
+    detailEn: 'The BTC price displayed on the page is a static fixed number that does not reflect real market fluctuations — a common data fabrication technique',
   },
   {
     id: 'target-apy',
+    category: 'impossible_returns',
+    risk_level: 'high',
     reasonZh: '不可能的無風險收益',
     reasonEn: 'Impossible "zero-risk" yield claim',
+    detailZh: '平台宣稱高年化收益且零風險，在現實金融市場中不存在無風險高收益產品，這是典型的龐氏騙局特徵',
+    detailEn: 'The platform claims high APY with zero risk. No risk-free high-yield products exist in real financial markets — this is a classic Ponzi scheme indicator',
   },
   {
     id: 'target-kyc',
+    category: 'regulatory_contradiction',
+    risk_level: 'medium',
     reasonZh: '矛盾的 KYC 機制：中心化業務卻免 KYC',
     reasonEn: 'Contradictory KYC claim: centralized custody + "no-KYC"',
+    detailZh: '該平台提供中心化託管服務，卻聲稱無需 KYC 驗證，這與合規金融機構的運作方式相矛盾',
+    detailEn: 'The platform offers centralized custody services yet claims no KYC is required — this contradicts how compliant financial institutions operate',
   },
   {
     id: 'target-mas',
+    category: 'regulatory_fraud',
+    risk_level: 'critical',
     reasonZh: '虛假 MAS 牌照：無法在新加坡金管局官網查詢到此平台',
     reasonEn: 'Fake MAS license claim (not verifiable on MAS website)',
+    detailZh: '平台聲稱持有新加坡金管局 (MAS) 牌照，但實際無法在 MAS 官方網站上查詢到任何相關記錄，屬於虛假監管聲明',
+    detailEn: 'The platform claims to hold a MAS license, but no corresponding record can be found on the official MAS website — this is a fraudulent regulatory claim',
   },
   {
     id: 'target-partners',
+    category: 'fake_endorsement',
+    risk_level: 'medium',
     reasonZh: '虛假合作夥伴',
     reasonEn: 'Fake / unverified partners',
+    detailZh: '頁面展示的合作夥伴標誌未經驗證，利用知名品牌商標製造虛假信任感，是常見的社會工程攻擊手段',
+    detailEn: 'The partner logos displayed on the page are unverified, using well-known brand trademarks to create false trust — a common social engineering tactic',
   },
 ];
 
@@ -220,12 +249,35 @@ const DrawingCanvas = ({ isEnabled, width, height, targets, onValidation }) => {
     contextRef.current = ctx;
   }, [width, height]);
 
+  // Get coordinates from mouse or touch event
   const getCoords = (e) => {
-    return { x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY };
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+
+    // Handle touch events
+    if (e.touches && e.touches.length > 0) {
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const scrollContainer = document.getElementById('scam-scroll-container');
+      const scrollX = scrollContainer ? scrollContainer.scrollLeft : window.scrollX;
+      const scrollY = scrollContainer ? scrollContainer.scrollTop : window.scrollY;
+      
+      return {
+        x: touch.clientX - rect.left + scrollX,
+        y: touch.clientY - rect.top + scrollY
+      };
+    }
+
+    // Handle mouse events
+    return { 
+      x: e.nativeEvent.offsetX, 
+      y: e.nativeEvent.offsetY 
+    };
   };
 
   const startDrawing = (e) => {
     if (!isEnabled || !contextRef.current) return;
+    e.preventDefault(); // Prevent scrolling on touch devices
     const { x, y } = getCoords(e);
     contextRef.current.beginPath();
     contextRef.current.moveTo(x, y);
@@ -236,6 +288,7 @@ const DrawingCanvas = ({ isEnabled, width, height, targets, onValidation }) => {
 
   const draw = (e) => {
     if (!isDrawing || !isEnabled || !contextRef.current) return;
+    e.preventDefault(); // Prevent scrolling on touch devices
     const { x, y } = getCoords(e);
     contextRef.current.lineTo(x, y);
     contextRef.current.stroke();
@@ -246,8 +299,9 @@ const DrawingCanvas = ({ isEnabled, width, height, targets, onValidation }) => {
     currentStrokeMax.current.y = Math.max(currentStrokeMax.current.y, y);
   };
 
-  const finishDrawing = () => {
+  const finishDrawing = (e) => {
     if (!isDrawing || !contextRef.current) return;
+    if (e) e.preventDefault(); // Prevent scrolling on touch devices
     contextRef.current.closePath();
     setIsDrawing(false);
 
@@ -296,9 +350,19 @@ const DrawingCanvas = ({ isEnabled, width, height, targets, onValidation }) => {
       onMouseDown={startDrawing}
       onMouseUp={finishDrawing}
       onMouseMove={draw}
+      onTouchStart={startDrawing}
+      onTouchEnd={finishDrawing}
+      onTouchMove={draw}
       // ★ 關鍵修改：將 z-[70] 改為 z-[120]，確保它永遠在 Modal 之上
-      className={`absolute top-0 left-0 z-[120] ${isEnabled ? 'pointer-events-auto cursor-pen' : 'pointer-events-none'}`}
-      style={{ width, height }}
+      className={`absolute top-0 left-0 z-[120] ${isEnabled ? 'pointer-events-auto cursor-pen touch-none select-none' : 'pointer-events-none'}`}
+      style={{ 
+        width, 
+        height,
+        touchAction: 'none', // Prevent default touch behaviors (scrolling, zooming)
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none'
+      }}
     />
   );
 };
@@ -459,16 +523,25 @@ const FakeMetaMask = ({ step, onConfirm, onCancel, foundTargets }) => {
 // ==========================================
 // 5. 核心場景組件 (QuantumFi)
 // ==========================================
-const QuantumFiScam = () => {
+const QuantumFiScam = ({ language: propLanguage, onSuccess, onFail, onGenerateReport }) => {
   const [status, setStatus] = useState('idle');
   const [educationMode, setEducationMode] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [reportGenerated, setReportGenerated] = useState(false);
   const [toast, setToast] = useState(null);
   const [foundTargets, setFoundTargets] = useState([]);
   const [attempts, setAttempts] = useState(10); // 10 次機會
   const [isFinished, setIsFinished] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [docSize, setDocSize] = useState({ w: 0, h: 0 });
-  const [language, setLanguage] = useState('chinese'); // 單獨語言選擇
+  const [language, setLanguage] = useState(propLanguage || 'chinese');
+
+  // 同步外部語言變化
+  useEffect(() => {
+    if (propLanguage) {
+      setLanguage(propLanguage);
+    }
+  }, [propLanguage]);
 
   useEffect(() => {
     const updateSize = () => {
@@ -543,6 +616,10 @@ const QuantumFiScam = () => {
       setIsFinished(true);
       setIsSuccess(true);
       setEducationMode(false);
+      // Notify parent of success for progress tracking
+      if (onSuccess) {
+        onSuccess();
+      }
       return;
     }
 
@@ -551,6 +628,11 @@ const QuantumFiScam = () => {
       setIsFinished(true);
       setIsSuccess(false);
       setEducationMode(false);
+      // Notify parent of failure for progress tracking
+      const missingTargets = TARGETS.filter((t) => !newFoundTargets.includes(t.id));
+      if (onFail) {
+        onFail(foundCount, totalTargets, missingTargets);
+      }
     }
   };
 
@@ -632,20 +714,11 @@ const QuantumFiScam = () => {
     ];
 
     return (
-      <div className="relative w-screen h-screen bg-slate-950 text-white overflow-hidden">
+      <div className="relative w-screen h-screen bg-slate-950 text-white overflow-hidden px-4">
         <CustomStyles />
 
-        {/* 結果頁：在「QuantumFi Beta」旁邊放語言切換（像文字，不像按鈕） */}
+        {/* 結果頁：只保留語言切換 */}
         <div className="absolute top-4 left-4 z-[110] flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 to-yellow-200 tracking-tight">
-              QuantumFi
-            </span>
-            <span className="bg-yellow-500/20 text-yellow-400 text-[11px] font-bold px-2 py-0.5 rounded border border-yellow-500/30 uppercase tracking-wider">
-              Beta
-            </span>
-          </div>
-
           <div className="lang-toggle" aria-label="Language switch">
             <span
               role="button"
@@ -736,6 +809,44 @@ const QuantumFiScam = () => {
           onRetry={null}
           onNextLevel={null}
         />
+
+        {/* 生成決策報告按鈕 */}
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[120] flex flex-col items-center gap-3">
+          {reportGenerated ? (
+            <div className="px-12 py-6 bg-green-600 text-white font-bold text-2xl rounded-2xl shadow-[0_0_30px_rgba(34,197,94,0.6)] pixel-font">
+              {language === 'chinese' ? '✅ 報告已生成！正在跳轉...' : '✅ Report Generated! Redirecting...'}
+            </div>
+          ) : (
+            <button
+              onClick={async () => {
+                setIsGenerating(true);
+                try {
+                  if (onGenerateReport) await onGenerateReport();
+                  setReportGenerated(true);
+                } catch (err) {
+                  console.error('Failed to generate report:', err);
+                  setIsGenerating(false);
+                }
+              }}
+              disabled={isGenerating}
+              className="px-16 py-7 text-white font-bold text-3xl rounded-2xl border-4 transition-all transform hover:scale-110 active:scale-95 pixel-font"
+              style={{
+                backgroundColor: isGenerating ? '#6b7280' : '#f59e0b',
+                borderColor: isGenerating ? '#9ca3af' : '#fcd34d',
+                boxShadow: isGenerating
+                  ? 'none'
+                  : '0 0 30px rgba(245, 158, 11, 0.8), inset 0 -3px 0 rgba(0,0,0,0.3)',
+                textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                cursor: isGenerating ? 'not-allowed' : 'pointer',
+                animation: isGenerating ? 'none' : 'pulse 2s infinite',
+              }}
+            >
+              {isGenerating
+                ? (language === 'chinese' ? '⏳ AI 正在分析報告...' : '⏳ AI Analyzing Report...')
+                : (language === 'chinese' ? '📊 生成決策報告' : '📊 Generate Decision Report')}
+            </button>
+          )}
+        </div>
       </div>
     );
   }
@@ -1077,8 +1188,182 @@ const QuantumFiScam = () => {
 // ==========================================
 // 6. 導出組件
 // ==========================================
-const Web3DangerAuth = ({ config }) => {
-  return <QuantumFiScam />;
+const Web3DangerAuth = ({ config, language: propLanguage }) => {
+  const navigate = useNavigate();
+  const { completeScenarioAndUnlockNext, userId } = useGame();
+  const { startTracking, recordStageError } = useAttemptTracking(config?.id);
+  const [view, setView] = useState('intro'); // 'intro' | 'challenge'
+  const [language, setLanguage] = useState(propLanguage || 'chinese');
+
+  // 同步外部語言變化
+  useEffect(() => {
+    if (propLanguage) {
+      setLanguage(propLanguage);
+    }
+  }, [propLanguage]);
+
+  const handleStartChallenge = async () => {
+    await startTracking(); // 開始計時
+    setView('challenge');
+  };
+
+  const handleSuccess = async () => {
+    console.log('🎮 Web3DangerAuth handleSuccess called');
+    console.log('📊 config.id:', config?.id);
+    console.log('📊 config.nextLevel:', config?.nextLevel);
+    
+    // 記錄成功答題並進入下一關（全部找齊，無漏圈紅旗）
+    if (config?.id) {
+      console.log('✅ Recording success and saving progress...');
+      const successDetails = {
+        error_type: 'none',
+        found_count: TARGETS.length,
+        total_count: TARGETS.length,
+        missing_targets: [],
+        description: `Successfully identified all ${TARGETS.length}/${TARGETS.length} red flags`,
+        force_progress_update: true,
+      };
+      await completeScenarioAndUnlockNext(config.id, config.nextLevel, true, successDetails);
+    }
+  };
+
+  const handleFail = async (foundCount, totalCount, missingTargets) => {
+    console.log('🎮 Web3DangerAuth handleFail called');
+    console.log('📊 config.id:', config?.id);
+    console.log('📊 Found:', foundCount, '/', totalCount);
+    
+    // 記錄失敗並結束 attempt — 僅記錄漏圈的紅旗詳細分類
+    if (config?.id) {
+      console.log('❌ Recording failure and completing attempt...');
+      const errorDetails = {
+        error_type: 'incomplete_red_flag_detection',
+        found_count: foundCount,
+        total_count: totalCount,
+        // 僅記錄漏圈的紅旗（含詳細分類）
+        missing_targets: missingTargets.map(t => ({
+          id: t.id,
+          category: t.category,
+          risk_level: t.risk_level,
+          reasonZh: t.reasonZh,
+          reasonEn: t.reasonEn,
+          detailZh: t.detailZh || t.reasonZh,
+          detailEn: t.detailEn || t.reasonEn,
+        })),
+        // 按風險類別統計漏圈情況
+        missed_by_category: missingTargets.reduce((acc, t) => {
+          acc[t.category] = acc[t.category] || [];
+          acc[t.category].push(t.id);
+          return acc;
+        }, {}),
+        // 按風險等級統計漏圈情況
+        missed_by_risk_level: missingTargets.reduce((acc, t) => {
+          acc[t.risk_level] = (acc[t.risk_level] || 0) + 1;
+          return acc;
+        }, {}),
+        description: `Found ${foundCount}/${totalCount} red flags, missed ${totalCount - foundCount} targets`,
+        // 標記這是最後一關，即使失敗也要更新進度
+        force_progress_update: true,
+      };
+      // 記錄失敗，結束 attempt（設置 end_time 和 duration_ms）
+      // is_success=false 正確標記為失敗
+      await completeScenarioAndUnlockNext(config.id, null, false, errorDetails);
+    }
+  };
+
+  // 介紹頁面
+  if (view === 'intro') {
+    const introData = config?.intro?.[language] || config?.intro?.chinese || {};
+    
+    return (
+      <ChallengeTemplate
+        language={language}
+        setLanguage={setLanguage}
+        containerMaxWidth="100vw"
+        containerMaxHeight="100vh"
+      >
+        <div className="flex items-center justify-center w-full min-h-screen p-8 relative z-10">
+          <div className="bg-[#0f172a] rounded-3xl p-10 max-w-2xl text-center backdrop-blur-xl shadow-2xl border border-gray-800">
+            <div className="mb-6 flex justify-center">
+              <span className="bg-cyan-500/10 text-cyan-400 px-4 py-1 rounded-full text-xs font-bold tracking-widest uppercase border border-cyan-500/30">
+                {language === 'chinese' ? '新任務解鎖' : 'New Mission Unlocked'}
+              </span>
+            </div>
+            <h1 className="text-4xl font-black text-white mb-6 tracking-tighter font-mono">
+              {introData?.title || (language === 'chinese' ? '混合詐騙實戰' : 'Mission: Hybrid Scam Drill')}
+            </h1>
+            <div className="space-y-6 text-left mb-10">
+              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                <p className="text-cyan-100/70 text-sm mb-1 uppercase font-bold">
+                  {language === 'chinese' ? '背景' : 'Background'}
+                </p>
+                <p className="text-white text-lg leading-relaxed">
+                  {introData?.story || (language === 'chinese' 
+                    ? '你在社交媒體上看到 QuantumFi 的廣告，聲稱能讓你獲得超高回報的質押收益。' 
+                    : 'You see a QuantumFi ad on social media, claiming to offer ultra-high staking rewards.')}
+                </p>
+              </div>
+              <div className="bg-white/5 p-4 rounded-xl border border-white/10">
+                <p className="text-cyan-100/70 text-sm mb-1 uppercase font-bold">
+                  {language === 'chinese' ? '目標' : 'Objective'}
+                </p>
+                <p className="text-white text-lg leading-relaxed">
+                  {introData?.mission || (language === 'chinese' 
+                    ? '找出所有釣魚網站的可疑特徵（紅旗指標），在用完機會之前發現所有危險信號。' 
+                    : 'Find all the red flags on the phishing website before running out of attempts.')}
+                </p>
+              </div>
+              <div className="bg-yellow-500/10 p-4 rounded-xl border border-yellow-500/30">
+                <p className="text-yellow-100/70 text-sm mb-1 uppercase font-bold">
+                  {language === 'chinese' ? '注意' : 'Warning'}
+                </p>
+                <p className="text-yellow-100 text-lg leading-relaxed">
+                  {introData?.warning || (language === 'chinese' 
+                    ? '點擊頁面上你認為可疑的元素。每次點擊都會消耗一次機會，請謹慎選擇！' 
+                    : 'Click on suspicious elements on the page. Each click costs one attempt, so choose wisely!')}
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={handleStartChallenge}
+              className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] transform hover:scale-[1.02]"
+            >
+              {introData?.btn || (language === 'chinese' ? '開始挑戰' : 'Start Challenge')}
+            </button>
+          </div>
+        </div>
+      </ChallengeTemplate>
+    );
+  }
+
+  // 生成決策報告（含 AI 分析）
+  const handleGenerateReport = async () => {
+    if (!userId) {
+      console.error('❌ No userId, cannot generate report');
+      return;
+    }
+    
+    console.log('📊 Generating final report with AI analysis for user:', userId);
+    try {
+      const report = await apiGenerateFinalReport(userId);
+      console.log('✅ Final report generated:', report);
+      
+      // 帶上完整報告數據跳轉到報告頁面
+      setTimeout(() => {
+        navigate('/report', { 
+          state: { 
+            report: report
+          } 
+        });
+      }, 2000);
+      
+      return report;
+    } catch (err) {
+      console.error('❌ Failed to generate report:', err);
+      throw err;
+    }
+  };
+
+  return <QuantumFiScam language={language} onSuccess={handleSuccess} onFail={handleFail} onGenerateReport={handleGenerateReport} />;
 };
 
 export default Web3DangerAuth;

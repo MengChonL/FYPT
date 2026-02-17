@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useGame } from '../../context/GameContext';
+import { useAttemptTracking } from '../../hooks/useAttemptTracking';
 import BrowserFrame from './BrowserFrame';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
 import PhaseRoadmap from '../PhaseRoadmap';
 import MetaMaskFox from '../../assets/MetaMask_Fox.png';
 
-const CreateWalletChallenge = ({ config }) => {
+const CreateWalletChallenge = ({ config, language: propLanguage }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [language, setLanguage] = useState('chinese');
+  const { getPhaseByScenarioCode, completeScenarioAndUnlockNext } = useGame();
+  const { startTracking, recordStageError } = useAttemptTracking(config?.id);
+  const [language, setLanguage] = useState(propLanguage || 'chinese');
   const [view, setView] = useState('map');
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
@@ -20,6 +24,7 @@ const CreateWalletChallenge = ({ config }) => {
   const [mnemonic, setMnemonic] = useState('');
   const [selectedBackupOption, setSelectedBackupOption] = useState(null);
   const [backupError, setBackupError] = useState('');
+  const [hasAnyStageError, setHasAnyStageError] = useState(false); // Track if any error occurred
   
   const t = config?.content?.[language];
   const introData = config?.intro?.[language];
@@ -131,7 +136,12 @@ const CreateWalletChallenge = ({ config }) => {
   const currentContent = content[language] || content.chinese;
 
   useEffect(() => {
-    setView('map');
+    // 如果從上一關跳轉過來，直接顯示 intro 頁面，跳過 roadmap
+    if (location.state?.skipToIntro) {
+      setView('intro');
+    } else {
+      setView('map');
+    }
     setShowResult(false);
     setWalletCreated(false);
     setPassword('');
@@ -140,10 +150,13 @@ const CreateWalletChallenge = ({ config }) => {
     setMnemonic('');
     setSelectedBackupOption(null);
     setBackupError('');
+    setHasAnyStageError(false);
   }, [location.pathname]);
 
   const handleStartLevel = (stepId) => {
-    if (stepId === 'create') setView('intro');
+    if (stepId === 'create') {
+      setView('intro');
+    }
   };
 
   // 处理创建钱包 - 跳转到密码输入界面
@@ -199,17 +212,27 @@ const CreateWalletChallenge = ({ config }) => {
   };
 
   // 处理下一关导航
-  const handleNextLevel = () => {
+  const handleNextLevel = async () => {
+    // 記錄答題結果：如果有錯誤，is_success 為 false，但仍然更新進度
+    if (config?.id) {
+      const finalSuccess = isCorrect && !hasAnyStageError;
+      // 即使失敗也要更新進度到下一關
+      const errorDetails = finalSuccess ? null : { force_progress_update: true };
+      await completeScenarioAndUnlockNext(config.id, config.nextLevel, finalSuccess, errorDetails);
+    }
+    
     if (config?.nextLevel) {
-      // 根据 nextLevel 确定路由路径
-      // nextLevel 格式应该是 'phase1-3'，需要转换为 '/challenge/phase1/phase1-3'
-      const phase = config.nextLevel.split('-')[0]; // 提取 'phase1'
-      navigate(`/challenge/${phase}/${config.nextLevel}`);
+      const phase = getPhaseByScenarioCode(config.nextLevel);
+      if (phase) {
+        navigate(`/challenge/${phase}/${config.nextLevel}`, { state: { skipToIntro: true } });
+      } else {
+        console.error('Cannot find phase for scenario:', config.nextLevel);
+      }
     }
   };
 
   // 处理助记词备份完成
-  const handleMnemonicBackupComplete = () => {
+  const handleMnemonicBackupComplete = async () => {
     // 检查是否选择了备份方式
     if (!selectedBackupOption) {
       setBackupError(currentContent.mnemonic.errorNoSelection);
@@ -227,11 +250,35 @@ const CreateWalletChallenge = ({ config }) => {
       setWalletCreated(false);
       setIsCorrect(false);
       setShowResult(true);
+      // 記錄失敗：用戶選擇了截圖方式（不結束 attempt）
+      if (config?.id) {
+        setHasAnyStageError(true);
+        await recordStageError({
+          error_type: 'wrong_backup_method',
+          user_selected: 'screenshot',
+          correct_answer: 'write',
+          description: language === 'chinese' 
+            ? '用戶選擇了截圖方式備份助記詞' 
+            : 'User chose screenshot method to backup mnemonic'
+        });
+      }
     } else if (selectedBackupOption === 'email') {
       setBackupError(currentContent.mnemonic.errorEmail);
       setWalletCreated(false);
       setIsCorrect(false);
       setShowResult(true);
+      // 記錄失敗：用戶選擇了郵件方式（不結束 attempt）
+      if (config?.id) {
+        setHasAnyStageError(true);
+        await recordStageError({
+          error_type: 'wrong_backup_method',
+          user_selected: 'email',
+          correct_answer: 'write',
+          description: language === 'chinese' 
+            ? '用戶選擇了郵件方式備份助記詞' 
+            : 'User chose email method to backup mnemonic'
+        });
+      }
     }
   };
 
@@ -272,7 +319,10 @@ const CreateWalletChallenge = ({ config }) => {
           </div>
         </div>
         <button 
-          onClick={() => setView('onboarding')}
+          onClick={async () => {
+            await startTracking(); // 開始計時
+            setView('onboarding');
+          }}
           className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] transform hover:scale-[1.02]"
         >
           {introData?.btn || currentContent.intro.btn}
@@ -282,7 +332,7 @@ const CreateWalletChallenge = ({ config }) => {
   );
 
   const renderOnboardingPage = () => (
-    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1]">
+    <div className="w-full min-h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1] py-8">
       <div className="w-full max-w-2xl mx-auto p-8">
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
           {/* Header */}
@@ -350,7 +400,7 @@ const CreateWalletChallenge = ({ config }) => {
   );
 
   const renderPasswordPage = () => (
-    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1]">
+    <div className="w-full min-h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1] py-8">
       <div className="w-full max-w-2xl mx-auto p-8">
         <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
           {/* Header */}
@@ -456,7 +506,7 @@ const CreateWalletChallenge = ({ config }) => {
     const mnemonicWords = mnemonic.split(' ').filter(word => word.trim() !== '');
 
     return (
-      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1]">
+      <div className="w-full min-h-full flex items-center justify-center bg-gradient-to-br from-[#f7f9fc] to-[#e8ecf1] py-8">
         <div className="w-full max-w-4xl mx-auto p-8">
           <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
             {/* Header */}
