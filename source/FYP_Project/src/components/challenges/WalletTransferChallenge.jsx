@@ -52,7 +52,10 @@ const WalletTransferChallenge = ({ config, language: propLanguage }) => {
   const [showItemReminder, setShowItemReminder] = useState(false); // 显示道具提醒
   const [openBackpack, setOpenBackpack] = useState(false); // 控制打开背包
   const [autoOpenItemIndex, setAutoOpenItemIndex] = useState(null); // 自動打開的道具索引
+<<<<<<< HEAD
   const [hasAnyStageError, setHasAnyStageError] = useState(false); // Track if any error occurred
+=======
+>>>>>>> 110bc78377dbd3e9223807e71df6fed82255b4b0
   
   const networkDropdownRef = useRef(null);
   const assetDropdownRef = useRef(null);
@@ -83,7 +86,10 @@ const WalletTransferChallenge = ({ config, language: propLanguage }) => {
     setShowItemReminder(false);
     setOpenBackpack(false);
     setAutoOpenItemIndex(null);
+<<<<<<< HEAD
     setHasAnyStageError(false);
+=======
+>>>>>>> 110bc78377dbd3e9223807e71df6fed82255b4b0
   }, [location.pathname, config]);
 
   // 处理下一关导航
@@ -851,7 +857,11 @@ const WalletTransferChallenge = ({ config, language: propLanguage }) => {
       const extraRecords = [
         {
           direction: 'send',
+<<<<<<< HEAD
           fromAddr: config.addresses.correct,
+=======
+          fromAddr: '0x1a2b3c4d5e6f781012345978901234567890abcb',
+>>>>>>> 110bc78377dbd3e9223807e71df6fed82255b4b0
           toAddr: '0x742d35Cc6634C0532925a3b8D4C9Fb2f2e2f0891',
           amount: '0.3000',
           gas: '0.0006',
@@ -861,7 +871,11 @@ const WalletTransferChallenge = ({ config, language: propLanguage }) => {
         {
           direction: 'receive',
           fromAddr: '0x8fE13D8D3b2158431d3eE3F1C872e7a1a1b8c9D2',
+<<<<<<< HEAD
           toAddr: config.addresses.correct,
+=======
+          toAddr: '0x1a2b3c4d5e6f781012345978901234567890abcb',
+>>>>>>> 110bc78377dbd3e9223807e71df6fed82255b4b0
           amount: '0.1200',
           gas: '0.0005',
           total: '0.1205',

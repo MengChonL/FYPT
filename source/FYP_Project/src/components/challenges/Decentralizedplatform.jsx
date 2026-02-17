@@ -55,7 +55,10 @@ const Decentralizedplatform = ({ config, language: propLanguage }) => {
     setShowItemReminder(false);
     setOpenBackpack(false);
     setAutoOpenItemIndex(null);
+<<<<<<< HEAD
     setHasAnyStageError(false);
+=======
+>>>>>>> 110bc78377dbd3e9223807e71df6fed82255b4b0
   }, [location.pathname, config]);
 
   if (!config) {

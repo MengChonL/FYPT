@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+<<<<<<< HEAD
 import { useGame } from '../../context/GameContext';
 import { useAttemptTracking } from '../../hooks/useAttemptTracking';
+=======
+>>>>>>> 110bc78377dbd3e9223807e71df6fed82255b4b0
 import BrowserFrame from './BrowserFrame';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';

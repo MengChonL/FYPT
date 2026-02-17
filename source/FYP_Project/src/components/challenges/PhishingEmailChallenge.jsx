@@ -29,7 +29,10 @@ const PhishingEmailChallenge = ({ config, language: propLanguage }) => {
   const [showItemReminder, setShowItemReminder] = useState(false); // 显示道具提醒
   const [openBackpack, setOpenBackpack] = useState(false); // 控制打开背包
   const [autoOpenItemIndex, setAutoOpenItemIndex] = useState(null); // 自動打開的道具索引
+<<<<<<< HEAD
   const [hasAnyStageError, setHasAnyStageError] = useState(false); // Track if any error occurred
+=======
+>>>>>>> 110bc78377dbd3e9223807e71df6fed82255b4b0
   
   const t = config?.content?.[language];
   const introData = config?.intro?.[language];
@@ -151,7 +154,10 @@ const PhishingEmailChallenge = ({ config, language: propLanguage }) => {
     setShowItemReminder(false);
     setOpenBackpack(false);
     setAutoOpenItemIndex(null);
+<<<<<<< HEAD
     setHasAnyStageError(false);
+=======
+>>>>>>> 110bc78377dbd3e9223807e71df6fed82255b4b0
   }, [location.pathname]);
 
   const handleStartLevel = (stepId) => { if (stepId === 'search') setView('intro'); };
