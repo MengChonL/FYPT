@@ -21,19 +21,19 @@ export const useAttemptTracking = (scenarioCode) => {
   const startTracking = useCallback(async () => {
     // 多重檢查防止重複調用
     if (!scenarioCode) {
-      console.log('⚠️ No scenarioCode provided');
+      if (import.meta.env.DEV) console.log('⚠️ No scenarioCode provided');
       return null;
     }
     
     // 如果已經有 currentAttemptId，直接返回它
     if (currentAttemptId) {
-      console.log('⚠️ Already have current attempt ID:', currentAttemptId);
+      if (import.meta.env.DEV) console.log('⚠️ Already have current attempt ID:', currentAttemptId);
       hasStarted.current = true;
       return currentAttemptId;
     }
     
     if (hasStarted.current) {
-      console.log('⚠️ Already started tracking for:', scenarioCode);
+      if (import.meta.env.DEV) console.log('⚠️ Already started tracking for:', scenarioCode);
       // 等待 attempt 創建完成（如果正在進行中）
       let waitCount = 0;
       while (isStarting.current && waitCount < 50) {
@@ -44,7 +44,7 @@ export const useAttemptTracking = (scenarioCode) => {
     }
     
     if (isStarting.current) {
-      console.log('⚠️ Already starting tracking for:', scenarioCode);
+      if (import.meta.env.DEV) console.log('⚠️ Already starting tracking for:', scenarioCode);
       // 等待進行中的創建完成
       let waitCount = 0;
       while (isStarting.current && waitCount < 50) {
@@ -56,18 +56,18 @@ export const useAttemptTracking = (scenarioCode) => {
     
     // 檢查全局狀態 - 防止 React Strict Mode 雙重調用
     if (activeAttempts.has(scenarioCode)) {
-      console.log('⚠️ Global: Already has active attempt for:', scenarioCode);
+      if (import.meta.env.DEV) console.log('⚠️ Global: Already has active attempt for:', scenarioCode);
       return currentAttemptId;
     }
     
-    console.log('🎬 Starting attempt tracking for:', scenarioCode);
+    if (import.meta.env.DEV) console.log('🎬 Starting attempt tracking for:', scenarioCode);
     isStarting.current = true;
     hasStarted.current = true;
     activeAttempts.set(scenarioCode, Date.now());
     
     try {
       const attemptId = await startScenarioAttempt(scenarioCode);
-      console.log('✅ Attempt tracking started, ID:', attemptId);
+      if (import.meta.env.DEV) console.log('✅ Attempt tracking started, ID:', attemptId);
       return attemptId;
     } catch (error) {
       console.error('❌ Failed to start tracking:', error);
@@ -94,7 +94,7 @@ export const useAttemptTracking = (scenarioCode) => {
   useEffect(() => {
     return () => {
       if (hasStarted.current) {
-        console.log('⚠️ Component unmounted with active attempt for:', scenarioCode);
+        if (import.meta.env.DEV) console.log('⚠️ Component unmounted with active attempt for:', scenarioCode);
         // 注意：這裡不能使用 await，因為 cleanup 函數應該是同步的
       }
     };

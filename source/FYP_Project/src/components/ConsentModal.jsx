@@ -106,20 +106,31 @@ const ConsentModal = ({ isOpen, onClose, onConsent, onLogin }) => {
                   <h3 className="text-lg font-semibold text-cyan-300 mb-3">
                     偏好語言 / Preferred Language <span className="text-red-400">*</span>
                   </h3>
-                  <div className="flex gap-4">
+                  <div className="flex gap-6">
                     <button
                       onClick={() => setLanguage('chinese')}
                       style={{
-                        padding: '12px 32px',
-                        borderRadius: '8px',
-                        transition: 'all 0.3s ease',
-                        backgroundColor: language === 'chinese' ? '#22d3ee' : '#374151',
-                        color: language === 'chinese' ? '#ffffff' : '#e5e7eb',
-                        border: language === 'chinese' ? '2px solid #22d3ee' : '2px solid #6b7280',
-                        boxShadow: language === 'chinese' ? '0 10px 25px rgba(34, 211, 238, 0.3)' : 'none',
+                        background: 'none',
+                        border: 'none',
+                        padding: '0',
                         cursor: 'pointer',
                         fontSize: '16px',
-                        fontWeight: 'bold'
+                        fontWeight: language === 'chinese' ? 'bold' : 'normal',
+                        color: language === 'chinese' ? '#22d3ee' : '#9ca3af',
+                        textDecoration: language === 'chinese' ? 'underline' : 'none',
+                        textDecorationColor: language === 'chinese' ? '#22d3ee' : 'transparent',
+                        textUnderlineOffset: '4px',
+                        transition: 'all 0.3s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (language !== 'chinese') {
+                          e.target.style.color = '#e5e7eb';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (language !== 'chinese') {
+                          e.target.style.color = '#9ca3af';
+                        }
                       }}
                     >
                       中文
@@ -127,16 +138,27 @@ const ConsentModal = ({ isOpen, onClose, onConsent, onLogin }) => {
                     <button
                       onClick={() => setLanguage('english')}
                       style={{
-                        padding: '12px 32px',
-                        borderRadius: '8px',
-                        transition: 'all 0.3s ease',
-                        backgroundColor: language === 'english' ? '#22d3ee' : '#374151',
-                        color: language === 'english' ? '#ffffff' : '#e5e7eb',
-                        border: language === 'english' ? '2px solid #22d3ee' : '2px solid #6b7280',
-                        boxShadow: language === 'english' ? '0 10px 25px rgba(34, 211, 238, 0.3)' : 'none',
+                        background: 'none',
+                        border: 'none',
+                        padding: '0',
                         cursor: 'pointer',
                         fontSize: '16px',
-                        fontWeight: 'bold'
+                        fontWeight: language === 'english' ? 'bold' : 'normal',
+                        color: language === 'english' ? '#22d3ee' : '#9ca3af',
+                        textDecoration: language === 'english' ? 'underline' : 'none',
+                        textDecorationColor: language === 'english' ? '#22d3ee' : 'transparent',
+                        textUnderlineOffset: '4px',
+                        transition: 'all 0.3s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (language !== 'english') {
+                          e.target.style.color = '#e5e7eb';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (language !== 'english') {
+                          e.target.style.color = '#9ca3af';
+                        }
                       }}
                     >
                       English

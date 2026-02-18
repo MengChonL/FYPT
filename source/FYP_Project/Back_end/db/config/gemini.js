@@ -79,14 +79,14 @@ ${JSON.stringify(reportData.skill_grading, null, 2)}
         cleanText = cleanText.trim();
 
         const analysis = JSON.parse(cleanText);
-        console.log('✅ Gemini AI analysis generated successfully');
+        if (process.env.NODE_ENV !== 'production') console.log('✅ Gemini AI analysis generated successfully');
         return analysis;
       } catch (err) {
         lastError = err;
         // 如果是 429 限流錯誤，等待後重試
         if (err.message && err.message.includes('429')) {
           const waitSec = (attempt + 1) * 6;
-          console.log(`⏳ Rate limited, retrying in ${waitSec}s... (attempt ${attempt + 1}/3)`);
+          if (process.env.NODE_ENV !== 'production') console.log(`⏳ Rate limited, retrying in ${waitSec}s... (attempt ${attempt + 1}/3)`);
           await new Promise(resolve => setTimeout(resolve, waitSec * 1000));
           continue;
         }
@@ -95,7 +95,7 @@ ${JSON.stringify(reportData.skill_grading, null, 2)}
     }
     throw lastError; // 3 次重試後仍失敗
   } catch (error) {
-    console.error('❌ Gemini AI analysis failed:', error.message);
+    if (process.env.NODE_ENV !== 'production') console.error('❌ Gemini AI analysis failed:', error.message);
     // 返回 fallback 結構，不影響主流程
     return {
       summary_zh: '由於 AI 服務暫時不可用，無法生成詳細分析。請參考上方的統計數據。',

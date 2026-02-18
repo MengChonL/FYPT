@@ -15,7 +15,7 @@ const Decentralizedplatform = ({ config, language: propLanguage }) => {
   const location = useLocation();
   const { getPhaseByScenarioCode, completeScenarioAndUnlockNext } = useGame();
   const { startTracking, recordStageError } = useAttemptTracking(config?.id);
-  const [view, setView] = useState('map'); // 'map' | 'intro' | 'challenge'
+  const [view, setView] = useState('intro'); // 'intro' | 'challenge'
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [language, setLanguage] = useState(propLanguage || 'chinese');
@@ -39,12 +39,8 @@ const Decentralizedplatform = ({ config, language: propLanguage }) => {
 
   // 初始化：路由变化时重置状态
   useEffect(() => {
-    // 如果從上一關跳轉過來，直接顯示 intro 頁面，跳過 roadmap
-    if (location.state?.skipToIntro) {
-      setView('intro');
-    } else {
-      setView('map');
-    }
+    // 直接顯示 intro 頁面（PhaseRoadmap 選擇已移至 GamePage）
+    setView('intro');
     setShowResult(false);
     setIsCorrect(false);
     setStage(1);
@@ -55,10 +51,7 @@ const Decentralizedplatform = ({ config, language: propLanguage }) => {
     setShowItemReminder(false);
     setOpenBackpack(false);
     setAutoOpenItemIndex(null);
-<<<<<<< HEAD
     setHasAnyStageError(false);
-=======
->>>>>>> 110bc78377dbd3e9223807e71df6fed82255b4b0
   }, [location.pathname, config]);
 
   if (!config) {
@@ -510,21 +503,21 @@ const Decentralizedplatform = ({ config, language: propLanguage }) => {
           { 
             id: 'mnemonic', 
             title: 'Provide 12 mnemonic phrases', 
-            badge: 'Extremely risky', 
+            badge: '📝', 
             badgeType: 'danger',
             description: 'Asking you to input your full seed phrase means giving away full control of your wallet. Scammers can take all your deposits at any time, which is why phishing sites use this method to trick users.'
           },
           { 
             id: 'direct', 
             title: 'Connect directly without signing anything', 
-            badge: 'Recommended', 
+            badge: '🔗', 
             badgeType: 'safe',
             description: 'When connecting to a decentralized platform, you only need to connect directly to tell the platform your wallet address. No signature is required during connection.'
           },
           { 
             id: 'sign', 
             title: 'Sign authorization to connect wallet', 
-            badge: 'Incorrect', 
+            badge: '🔑', 
             badgeType: 'warning',
             description: 'Connecting does not require signing any contract. Signatures are only needed when performing transactions or other operations, not during the initial connection.'
           }

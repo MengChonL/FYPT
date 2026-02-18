@@ -1,7 +1,7 @@
 // src/api/index.js
 // 前端 API 連接層
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // ===== 通用 fetch 函數 =====
 async function fetchAPI(endpoint) {
@@ -18,7 +18,6 @@ async function fetchAPI(endpoint) {
 }
 
 async function postAPI(endpoint, data) {
-  console.log(`📡 POST ${API_BASE}${endpoint}`, data);
   try {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       method: 'POST',
@@ -27,15 +26,12 @@ async function postAPI(endpoint, data) {
       },
       body: JSON.stringify(data)
     });
-    console.log(`📡 Response status: ${response.status}`);
     if (!response.ok) {
       throw new Error(`API Error: ${response.status}`);
     }
-    const result = await response.json();
-    console.log(`📡 Response data:`, result);
-    return result;
+    return await response.json();
   } catch (error) {
-    console.error(`❌ Failed to post ${endpoint}:`, error);
+    console.error(`Failed to post ${endpoint}:`, error.message);
     throw error;
   }
 }
@@ -62,7 +58,6 @@ export const loginByUsername = (username) => postAPI('/users/login', { username 
 // ===== Progress =====
 export const getUserProgress = (userId) => fetchAPI(`/users/${userId}/progress`);
 export const updateProgress = (userId, scenarioId, status) => {
-  console.log('🌐 API updateProgress called:', { userId, scenarioId, status });
   return postAPI(`/users/${userId}/progress`, { scenarioId, status });
 };
 

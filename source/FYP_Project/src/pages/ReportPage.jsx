@@ -61,7 +61,7 @@ const SKILL_LEVEL_LABELS = {
 const ReportPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { language, logout } = useGame();
+  const { language, setLanguage, logout } = useGame();
   const [reportData, setReportData] = useState(null);
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
@@ -162,6 +162,36 @@ const ReportPage = () => {
     <div className="min-h-screen w-screen bg-[#0f172a] text-white relative overflow-x-hidden overflow-y-auto">
       <FixedBackground />
       
+      {/* 語言切換 - 左上角 */}
+      <div className="absolute top-6 left-8 z-20 flex gap-4 text-base tracking-widest pixel-font">
+        <span
+          onClick={() => setLanguage('chinese')}
+          className="cursor-pointer transition-all"
+          style={{
+            color: '#22d3ee',
+            opacity: language === 'chinese' ? 1 : 0.4,
+            borderBottom: language === 'chinese' ? '2px solid #22d3ee' : '2px solid transparent',
+            paddingBottom: '4px',
+            textShadow: language === 'chinese' ? '0 0 10px rgba(34,211,238,0.5)' : 'none'
+          }}
+        >
+          中文
+        </span>
+        <span
+          onClick={() => setLanguage('english')}
+          className="cursor-pointer transition-all"
+          style={{
+            color: '#22d3ee',
+            opacity: language === 'english' ? 1 : 0.4,
+            borderBottom: language === 'english' ? '2px solid #22d3ee' : '2px solid transparent',
+            paddingBottom: '4px',
+            textShadow: language === 'english' ? '0 0 10px rgba(34,211,238,0.5)' : 'none'
+          }}
+        >
+          ENGLISH
+        </span>
+      </div>
+
       {/* 頂部標題區 */}
       <motion.div
         initial={{ y: -50, opacity: 0 }}
@@ -438,7 +468,13 @@ const ReportPage = () => {
       </div>
 
       {/* 底部按鈕 */}
-      <div className="relative z-20 flex justify-center pb-24" style={{ paddingTop: '80px' }}>
+      <div className="relative z-20 flex justify-center gap-8 pb-24" style={{ paddingTop: '80px' }}>
+        <button
+          onClick={() => navigate('/game')}
+          className="px-24 py-6 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-2xl transition-all pixel-font border-2 border-cyan-400 text-xl shadow-[0_0_15px_rgba(0,255,255,0.3)]"
+        >
+          {t.backToHome}
+        </button>
         <button
           onClick={() => {
             logout();

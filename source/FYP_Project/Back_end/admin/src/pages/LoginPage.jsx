@@ -1,7 +1,5 @@
 import { useState } from 'react';
-
-const ADMIN_USERNAME = 'admin';
-const ADMIN_PASSWORD = 'Ph1sh1ng_@dm1n';
+import { adminLogin } from '../api';
 
 export default function LoginPage({ onLogin }) {
   const [username, setUsername] = useState('');
@@ -9,16 +7,30 @@ export default function LoginPage({ onLogin }) {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
-      sessionStorage.setItem('admin_auth', 'true');
+    if (!username || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const res = await adminLogin(username, password);
+      // Store JWT token securely in sessionStorage
+      sessionStorage.setItem('admin_token', res.data.token);
       onLogin();
-    } else {
-      setError('Invalid username or password');
+    } catch (err) {
+      const msg = err.response?.status === 429
+        ? 'Too many login attempts. Please try again later.'
+        : err.response?.data?.error || 'Login failed';
+      setError(msg);
       setShake(true);
       setTimeout(() => setShake(false), 500);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,7 +88,9 @@ export default function LoginPage({ onLogin }) {
 
           {error && <div className="login-error">{error}</div>}
 
-          <button type="submit" className="login-btn">Sign In</button>
+          <button type="submit" className="login-btn" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
         </form>
       </div>
     </div>

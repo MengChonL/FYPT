@@ -59,33 +59,33 @@ const ChallengePage = () => {
     // 先嘗試同步解析
     const syncResult = resolveScenarioSync(nextLevelId);
     if (syncResult) {
-      console.log('🚀 預載入下一關 (同步):', nextLevelId);
+      if (import.meta.env.DEV) console.log('🚀 預載入下一關 (同步):', nextLevelId);
       return;
     }
 
     // 同步找不到，異步從 API 預取
-    console.log('🚀 預載入下一關 (異步):', nextLevelId);
+    if (import.meta.env.DEV) console.log('🚀 預載入下一關 (異步):', nextLevelId);
     getScenario(nextLevelId)
       .then(data => {
         if (data) {
           scenarioCache.set(nextLevelId, data);
-          console.log('✅ 預載入完成:', nextLevelId);
+          if (import.meta.env.DEV) console.log('✅ 預載入完成:', nextLevelId);
         }
       })
       .catch(err => {
-        console.warn('⚠️ 預載入失敗:', nextLevelId, err);
+        if (import.meta.env.DEV) console.warn('⚠️ 預載入失敗:', nextLevelId, err);
       });
   }, [resolveScenarioSync]);
 
   // 從資料庫載入場景資料
   useEffect(() => {
     const loadScenario = async () => {
-      console.log('🔍 Loading scenario:', id);
+      if (import.meta.env.DEV) console.log('🔍 Loading scenario:', id);
 
       // 先嘗試同步解析（避免 loading flash）
       const syncResult = resolveScenarioSync(id);
       if (syncResult) {
-        console.log('✅ 同步載入場景:', id);
+        if (import.meta.env.DEV) console.log('✅ 同步載入場景:', id);
         setScenario(syncResult);
         setLoading(false);
 
@@ -98,9 +98,9 @@ const ChallengePage = () => {
       // 同步找不到，走異步
       setLoading(true);
       try {
-        console.log('🌐 Fetching from API...');
+        if (import.meta.env.DEV) console.log('🌐 Fetching from API...');
         const data = await getScenario(id);
-        console.log('✅ Got scenario from API:', data);
+        if (import.meta.env.DEV) console.log('✅ Got scenario from API:', data);
         if (data) scenarioCache.set(id, data);
         setScenario(data);
 
@@ -152,8 +152,8 @@ const ChallengePage = () => {
     const config = scenario.config;
     const challengeType = config.type;
     
-    console.log('🎮 Rendering challenge with local config:', config);
-    console.log('🎯 Challenge type:', challengeType);
+    if (import.meta.env.DEV) console.log('🎮 Rendering challenge with local config:', config);
+    if (import.meta.env.DEV) console.log('🎯 Challenge type:', challengeType);
     
     switch (challengeType) {
       case 'phishing':
@@ -298,8 +298,8 @@ const ChallengePage = () => {
     nextLevel: challengesConfig[id]?.nextLevel ?? challengesConfig[scenario.scenario_code]?.nextLevel ?? scenario.config_data?.nextLevel ?? null,
   };
 
-  console.log('🎮 Rendering challenge with config:', config);
-  console.log('🎯 Challenge type:', config.type);
+  if (import.meta.env.DEV) console.log('🎮 Rendering challenge with config:', config);
+  if (import.meta.env.DEV) console.log('🎯 Challenge type:', config.type);
 
   // 根據場景類型分發到對應組件
   switch (config.type) {
