@@ -1,0 +1,12 @@
+{
+  "name": "fyp-functions",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0",
+    "openai": "^4.0.0"
+  }
+}
+
+
