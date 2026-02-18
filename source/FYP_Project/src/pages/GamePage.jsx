@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
+import { getUserFinalReport } from '../api';
 import FixedBackground from '../components/FixedBackground';
 import Folder from '../components/Folder';
 import PhaseRoadmap2 from '../components/PhaseRoadmap2';
+import PhaseRoadmap from '../components/PhaseRoadmap';
 import UserStatistics from '../components/UserStatistics';
 // 導入圖片
 import challenge1Img from '../assets/Challenge1.png';
@@ -66,13 +68,17 @@ import dexGuide3En from '../assets/DEXEN3.png';
 
 const GamePage = () => {
   const navigate = useNavigate();
-  const { phases, scenarios, loading, error, getScenariosByPhase, language, setLanguage, canStartPhase, canStartScenario, getCurrentScenario, getCurrentScenarioPath, getPhaseCurrentPath, logout, userId } = useGame();
+  const { phases, scenarios, loading, error, getScenariosByPhase, language, setLanguage, canStartPhase, canStartScenario, getCurrentScenario, getCurrentScenarioPath, getPhaseCurrentPath, logout, userId, currentScenarioCode } = useGame();
   const [showBackpack, setShowBackpack] = useState(false);
   const [selectedItem, setSelectedItem] = useState(0);
   const [showItemViewer, setShowItemViewer] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showAuthorizationChallenges, setShowAuthorizationChallenges] = useState(false);
+  const [showPhase1Challenges, setShowPhase1Challenges] = useState(false);
   const [showStatistics, setShowStatistics] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  const isCompleted = currentScenarioCode === 'completed';
 
   // 獲取當前關卡信息
   const currentScenario = getCurrentScenario?.();
@@ -297,8 +303,8 @@ const GamePage = () => {
       {/* 動態粒子背景 */}
       <FixedBackground />
 
-      {/* 頂部導航：語言切換與背包 - 當顯示授權挑戰選擇界面時隱藏 */}
-      {!showAuthorizationChallenges && (
+      {/* 頂部導航：語言切換與背包 - 當顯示挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && !showPhase1Challenges && (
         <div className="absolute top-0 left-0 w-full flex justify-between items-center p-10 z-[60]">
         <div className="flex gap-8 text-base tracking-widest">
           <span 
@@ -333,40 +339,73 @@ const GamePage = () => {
             <Folder size={1.2} color="#22d3ee" />
             <span className="group-hover:opacity-80 uppercase">{t.backpack}</span>
           </div>
-          {/* 統計按鈕 */}
-          <button
-            onClick={() => setShowStatistics(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-cyan-500/20"
-            style={{
-              ...blueTextStyle,
-              border: '1px solid #22d3ee',
-              cursor: 'pointer'
-            }}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span className="text-sm uppercase">{language === 'chinese' ? '統計' : 'Stats'}</span>
-          </button>
+          {/* 統計 / 用戶報告按鈕 */}
+          {isCompleted ? (
+            <div 
+              onClick={async () => {
+                if (isGeneratingReport) return;
+                setIsGeneratingReport(true);
+                try {
+                  const report = await getUserFinalReport(userId);
+                  if (report) {
+                    navigate('/report', { state: { report } });
+                  } else {
+                    alert(language === 'chinese' ? '找不到報告，請先完成所有關卡' : 'Report not found. Please complete all challenges first.');
+                  }
+                } catch (err) {
+                  console.error('❌ Failed to fetch report:', err);
+                } finally {
+                  setIsGeneratingReport(false);
+                }
+              }}
+              className="flex items-center gap-2 group"
+              style={{ ...blueTextStyle, opacity: isGeneratingReport ? 0.5 : 1 }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="19.2" height="19.2" fill="none" viewBox="0 0 24 24" stroke="#22d3ee" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="group-hover:opacity-80 uppercase">
+                {isGeneratingReport
+                  ? (language === 'chinese' ? '載入中...' : 'Loading...')
+                  : (language === 'chinese' ? '用戶報告' : 'User Report')}
+              </span>
+            </div>
+          ) : (
+            <div 
+              onClick={() => setShowStatistics(true)}
+              className="flex items-center gap-2 group"
+              style={blueTextStyle}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="19.2" height="19.2" fill="none" viewBox="0 0 24 24" stroke="#22d3ee" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span className="group-hover:opacity-80 uppercase">{language === 'chinese' ? '統計' : 'Stats'}</span>
+            </div>
+          )}
           {/* 登出按鈕 */}
-          <button
+          <div 
             onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 hover:bg-red-500/20"
+            className="flex items-center gap-2 group"
             style={{
-              ...blueTextStyle,
+              ...pixelFontStyle,
               color: '#ef4444',
-              border: '1px solid #ef4444',
-              cursor: 'pointer'
+              textShadow: '0 0 10px rgba(239, 68, 68, 0.6)',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              fontWeight: 'bold'
             }}
           >
-            <span className="text-sm uppercase">{language === 'chinese' ? '登出' : 'Logout'}</span>
-          </button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="19.2" height="19.2" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span className="group-hover:opacity-80 uppercase">{language === 'chinese' ? '登出' : 'Logout'}</span>
+          </div>
         </div>
       </div>
       )}
 
-      {/* 主內容區：標題與大關卡選擇 [cite: 34, 42] - 當顯示授權挑戰選擇界面時隱藏 */}
-      {!showAuthorizationChallenges && (
+      {/* 主內容區：標題與大關卡選擇 [cite: 34, 42] - 當顯示挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && !showPhase1Challenges && (
       <main className="flex flex-col items-center justify-center z-10 w-full px-6">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
@@ -427,8 +466,7 @@ const GamePage = () => {
             }}
             className="cursor-pointer"
             onClick={() => {
-              const path = getPhaseCurrentPath('onboarding');
-              navigate(path || '/challenge/onboarding/phase1-1', { replace: false });
+              setShowPhase1Challenges(true);
             }}
           >
             <img 
@@ -1168,6 +1206,20 @@ const GamePage = () => {
         />
       )}
 
+      {/* Phase 1 挑戰選擇界面 */}
+      {showPhase1Challenges && (
+        <PhaseRoadmap
+          language={language}
+          setLanguage={setLanguage}
+          onSelectChallenge={(challenge) => {
+            navigate(challenge.route, { replace: false });
+            setShowPhase1Challenges(false);
+          }}
+          onClose={() => setShowPhase1Challenges(false)}
+          onOpenBackpack={() => setShowBackpack(true)}
+        />
+      )}
+
       {/* 統計界面 */}
       {showStatistics && (
         <UserStatistics
@@ -1177,8 +1229,8 @@ const GamePage = () => {
         />
       )}
 
-      {/* 底部基石文字 - 當顯示授權挑戰選擇界面時隱藏 */}
-      {!showAuthorizationChallenges && (
+      {/* 底部基石文字 - 當顯示挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && !showPhase1Challenges && (
         <footer className="absolute bottom-10 w-full text-center opacity-40 text-xs tracking-[0.5em] uppercase px-8" style={pixelFontStyle}>
           ✦The website information is just use for anti-phishing education. The game challenges mimic web pages and are not intended for phishing.✦
         </footer>

@@ -42,7 +42,7 @@ const CentralizedPlatform = ({ config, language: propLanguage }) => {
   const location = useLocation();
   const { getPhaseByScenarioCode, completeScenarioAndUnlockNext } = useGame();
   const { startTracking, recordStageError } = useAttemptTracking(config?.id);
-  const [view, setView] = useState('map'); // 'map' | 'intro' | 'challenge'
+  const [view, setView] = useState('intro'); // 'intro' | 'challenge'
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [language, setLanguage] = useState(propLanguage || 'chinese');
@@ -627,12 +627,8 @@ const CentralizedPlatform = ({ config, language: propLanguage }) => {
 
   // 初始化：路由变化时重置状态
   useEffect(() => {
-    // 如果從上一關跳轉過來，直接顯示 intro 頁面，跳過 roadmap
-    if (location.state?.skipToIntro) {
-      setView('intro');
-    } else {
-      setView('map');
-    }
+    // 直接顯示 intro 頁面（PhaseRoadmap 選擇已移至 GamePage）
+    setView('intro');
     setShowResult(false);
     setIsCorrect(false);
     setStage(1);
@@ -646,10 +642,7 @@ const CentralizedPlatform = ({ config, language: propLanguage }) => {
     setShowItemReminder(false);
     setOpenBackpack(false);
     setAutoOpenItemIndex(null);
-<<<<<<< HEAD
     setHasAnyStageError(false);
-=======
->>>>>>> 110bc78377dbd3e9223807e71df6fed82255b4b0
   }, [location.pathname, config]);
 
   if (!config) {

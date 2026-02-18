@@ -1,49 +1,55 @@
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
 
-dotenv.config();
-
-const IS_DEV = process.env.NODE_ENV !== 'production';
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Cloudflare Functions 使用 env 变量，不需要 dotenv
+// 从环境变量获取配置（在 Cloudflare Pages 中设置）
+const getEnv = () => {
+  // 在 Cloudflare Functions 中，环境变量通过 env 参数传递
+  // 这里我们使用全局的 process.env 或通过函数参数传入
+  return {
+    SUPABASE_URL: typeof process !== 'undefined' ? process.env.SUPABASE_URL : null,
+    SUPABASE_ANON_KEY: typeof process !== 'undefined' ? process.env.SUPABASE_ANON_KEY : null,
+    SUPABASE_SERVICE_ROLE_KEY: typeof process !== 'undefined' ? process.env.SUPABASE_SERVICE_ROLE_KEY : null,
+  };
+};
 
 // 設定時區 (香港時間 UTC+8)
 const TIMEZONE_OFFSET = 8; // 小時
 
 // 獲取帶時區的時間戳字符串
-const getLocalTimestamp = () => {
+export const getLocalTimestamp = () => {
   const now = new Date();
   // 加上時區偏移
   const localTime = new Date(now.getTime() + TIMEZONE_OFFSET * 60 * 60 * 1000);
   return localTime.toISOString().replace('Z', '+08:00');
 };
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Missing Supabase environment variables!');
-  process.exit(1);
-}
+// 初始化 Supabase 客户端（需要传入 env）
+export const initSupabase = (env) => {
+  const { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY } = env || getEnv();
+  
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Missing Supabase environment variables!');
+  }
 
-if (!supabaseServiceKey) {
-  console.warn('⚠️ Missing SUPABASE_SERVICE_ROLE_KEY - admin operations may fail!');
-}
+  // 一般用戶操作（受 RLS 限制）
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// 一般用戶操作（受 RLS 限制）
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+  // Admin 操作（繞過 RLS）
+  const supabaseAdmin = SUPABASE_SERVICE_ROLE_KEY 
+    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+    : supabase; // Fallback to anon if no service key
 
-// Admin 操作（繞過 RLS）
-export const supabaseAdmin = supabaseServiceKey 
-  ? createClient(supabaseUrl, supabaseServiceKey)
-  : supabase; // Fallback to anon if no service key
+  return { supabase, supabaseAdmin };
+};
 
 // ===== 用戶相關操作 =====
 
 // 根據用戶名查找用戶（用於檢查唯一性和登入）
-export const getUserByUsername = async (username) => {
+export const getUserByUsername = async (username, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('users')
-    .select('user_id, username, preferred_language, current_scenario_code, status, consent_given, web3_experience, created_at')
+    .select('*')
     .eq('username', username)
     .single();
 
@@ -52,7 +58,8 @@ export const getUserByUsername = async (username) => {
 };
 
 // 檢查用戶名是否已存在
-export const checkUsernameExists = async (username) => {
+export const checkUsernameExists = async (username, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('users')
     .select('user_id')
@@ -63,9 +70,10 @@ export const checkUsernameExists = async (username) => {
   return !!data;
 };
 
-export const createUser = async (username, language = 'chinese', consent = true, hasExperience = false) => {
+export const createUser = async (username, language = 'chinese', consent = true, hasExperience = false, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   // 檢查用戶名是否已存在
-  const exists = await checkUsernameExists(username);
+  const exists = await checkUsernameExists(username, env);
   if (exists) {
     throw new Error('Username already exists');
   }
@@ -88,7 +96,8 @@ export const createUser = async (username, language = 'chinese', consent = true,
   return userData;
 };
 
-export const getUser = async (userId) => {
+export const getUser = async (userId, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('users')
     .select('*')
@@ -99,7 +108,8 @@ export const getUser = async (userId) => {
   return data;
 };
 
-export const getAllUsers = async () => {
+export const getAllUsers = async (env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('users')
     .select('*')
@@ -109,9 +119,10 @@ export const getAllUsers = async () => {
   return data;
 };
 
-export const searchUsers = async (query) => {
+export const searchUsers = async (query, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const trimmed = (query || '').trim();
-  if (!trimmed) return getAllUsers();
+  if (!trimmed) return getAllUsers(env);
 
   // Escape ilike wildcard characters to prevent pattern injection
   const escaped = trimmed.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
@@ -138,7 +149,8 @@ export const searchUsers = async (query) => {
   return data;
 };
 
-export const updateLastLogin = async (userId) => {
+export const updateLastLogin = async (userId, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { error } = await supabaseAdmin
     .from('users')
     .update({ last_login_at: new Date().toISOString() })
@@ -148,27 +160,28 @@ export const updateLastLogin = async (userId) => {
 };
 
 // 刪除用戶及其所有關聯數據
-export const deleteUserAndData = async (userId) => {
+export const deleteUserAndData = async (userId, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   // 1. 刪除 user_final_reports
   const { error: reportErr } = await supabaseAdmin
     .from('user_final_reports')
     .delete()
     .eq('user_id', userId);
-  if (reportErr && IS_DEV) console.warn('⚠️ Delete reports:', reportErr.message);
+  if (reportErr) console.warn('⚠️ Delete reports:', reportErr.message);
 
   // 2. 刪除 user_attempts
   const { error: attemptErr } = await supabaseAdmin
     .from('user_attempts')
     .delete()
     .eq('user_id', userId);
-  if (attemptErr && IS_DEV) console.warn('⚠️ Delete attempts:', attemptErr.message);
+  if (attemptErr) console.warn('⚠️ Delete attempts:', attemptErr.message);
 
   // 3. 刪除 user_progress
   const { error: progressErr } = await supabaseAdmin
     .from('user_progress')
     .delete()
     .eq('user_id', userId);
-  if (progressErr && IS_DEV) console.warn('⚠️ Delete progress:', progressErr.message);
+  if (progressErr) console.warn('⚠️ Delete progress:', progressErr.message);
 
   // 4. 最後刪除用戶本身
   const { error: userErr } = await supabaseAdmin
@@ -182,7 +195,8 @@ export const deleteUserAndData = async (userId) => {
 
 // ===== Phase 相關操作 =====
 
-export const getPhases = async () => {
+export const getPhases = async (env) => {
+  const { supabase } = initSupabase(env);
   const { data, error } = await supabase
     .from('phases')
     .select('*')
@@ -193,7 +207,8 @@ export const getPhases = async () => {
   return data;
 };
 
-export const createPhase = async (phaseData) => {
+export const createPhase = async (phaseData, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('phases')
     .insert(phaseData)
@@ -204,7 +219,8 @@ export const createPhase = async (phaseData) => {
   return data;
 };
 
-export const updatePhase = async (phaseId, phaseData) => {
+export const updatePhase = async (phaseId, phaseData, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('phases')
     .update(phaseData)
@@ -218,7 +234,8 @@ export const updatePhase = async (phaseId, phaseData) => {
 
 // ===== 場景相關操作 =====
 
-export const getScenariosByPhase = async (phaseId) => {
+export const getScenariosByPhase = async (phaseId, env) => {
+  const { supabase } = initSupabase(env);
   const { data, error } = await supabase
     .from('scenarios')
     .select(`
@@ -233,7 +250,8 @@ export const getScenariosByPhase = async (phaseId) => {
   return data;
 };
 
-export const getScenario = async (scenarioCode) => {
+export const getScenario = async (scenarioCode, env) => {
+  const { supabase } = initSupabase(env);
   const { data, error } = await supabase
     .from('scenarios')
     .select(`
@@ -248,7 +266,8 @@ export const getScenario = async (scenarioCode) => {
   return data;
 };
 
-export const getAllScenarios = async () => {
+export const getAllScenarios = async (env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('scenarios')
     .select(`
@@ -262,7 +281,8 @@ export const getAllScenarios = async () => {
   return data;
 };
 
-export const createScenario = async (scenarioData) => {
+export const createScenario = async (scenarioData, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('scenarios')
     .insert(scenarioData)
@@ -273,7 +293,8 @@ export const createScenario = async (scenarioData) => {
   return data;
 };
 
-export const updateScenario = async (scenarioId, scenarioData) => {
+export const updateScenario = async (scenarioId, scenarioData, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('scenarios')
     .update(scenarioData)
@@ -285,7 +306,8 @@ export const updateScenario = async (scenarioId, scenarioData) => {
   return data;
 };
 
-export const deleteScenario = async (scenarioId) => {
+export const deleteScenario = async (scenarioId, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { error } = await supabaseAdmin
     .from('scenarios')
     .delete()
@@ -296,7 +318,8 @@ export const deleteScenario = async (scenarioId) => {
 
 // ===== 場景類型操作 =====
 
-export const getScenarioTypes = async () => {
+export const getScenarioTypes = async (env) => {
+  const { supabase } = initSupabase(env);
   const { data, error } = await supabase
     .from('scenario_types')
     .select('*');
@@ -307,7 +330,8 @@ export const getScenarioTypes = async () => {
 
 // ===== 用戶進度操作 =====
 
-export const getUserProgress = async (userId) => {
+export const getUserProgress = async (userId, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   // 從 users 表獲取 current_scenario_code
   const { data: user, error } = await supabaseAdmin
     .from('users')
@@ -323,8 +347,9 @@ export const getUserProgress = async (userId) => {
   };
 };
 
-export const updateProgress = async (userId, scenarioId, status) => {
-  if (IS_DEV) console.log(`🔄 Supabase updateProgress: userId=${userId}, scenarioCode=${scenarioId}, status=${status}`);
+export const updateProgress = async (userId, scenarioId, status, env) => {
+  console.log(`🔄 Supabase updateProgress: userId=${userId}, scenarioCode=${scenarioId}, status=${status}`);
+  const { supabaseAdmin } = initSupabase(env);
   
   // 只有當 status 為 'current' 時才更新 users 表的 current_scenario_code
   // scenarioId 這裡實際上傳的是 scenario_code
@@ -339,26 +364,27 @@ export const updateProgress = async (userId, scenarioId, status) => {
       .single();
 
     if (error) {
-      if (IS_DEV) console.error('❌ Supabase updateProgress error:', error);
+      console.error('❌ Supabase updateProgress error:', error);
       throw error;
     }
     
-    if (IS_DEV) console.log('✅ Supabase updateProgress success:', data);
+    console.log('✅ Supabase updateProgress success:', data);
     return data;
   }
   
   // 如果是 'completed' 狀態，不需要特別處理，因為下一個關卡會設為 'current'
-  if (IS_DEV) console.log('ℹ️ Status is completed, no update needed for users table');
+  console.log('ℹ️ Status is completed, no update needed for users table');
   return { status: 'ok' };
 };
 
 // ===== 嘗試記錄操作 =====
 
-export const startAttempt = async (userId, scenarioId, sessionId) => {
+export const startAttempt = async (userId, scenarioId, sessionId, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   // 使用本地時區時間 (香港 UTC+8)
   const startTime = getLocalTimestamp();
   
-  if (IS_DEV) console.log('🎬 Creating attempt:', { userId, scenarioId, sessionId, startTime });
+  console.log('🎬 Creating attempt:', { userId, scenarioId, sessionId, startTime });
   
   const { data, error } = await supabaseAdmin
     .from('user_attempts')
@@ -373,11 +399,12 @@ export const startAttempt = async (userId, scenarioId, sessionId) => {
 
   if (error) throw error;
   
-  if (IS_DEV) console.log('✅ Attempt created:', data.attempt_id, 'start_time:', data.start_time);
+  console.log('✅ Attempt created:', data.attempt_id, 'start_time:', data.start_time);
   return data;
 };
 
-export const completeAttempt = async (attemptId, isSuccess, errorDetails = null) => {
+export const completeAttempt = async (attemptId, isSuccess, errorDetails = null, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   // 使用本地時區時間 (香港 UTC+8)
   const endTime = getLocalTimestamp();
   const endTimeDate = new Date();
@@ -389,7 +416,7 @@ export const completeAttempt = async (attemptId, isSuccess, errorDetails = null)
     .single();
 
   if (fetchError || !attempt) {
-    if (IS_DEV) console.error('❌ Failed to fetch attempt:', fetchError);
+    console.error('❌ Failed to fetch attempt:', fetchError);
     throw fetchError || new Error('Attempt not found');
   }
 
@@ -398,7 +425,7 @@ export const completeAttempt = async (attemptId, isSuccess, errorDetails = null)
   const startTime = new Date(startTimeStr);
   const durationMs = endTimeDate.getTime() - startTime.getTime();
   
-  if (IS_DEV) console.log('⏱️ Duration calculation:', {
+  console.log('⏱️ Duration calculation:', {
     attemptId,
     rawStartTime: attempt.start_time,
     parsedStartTime: startTime.toISOString(),
@@ -420,7 +447,7 @@ export const completeAttempt = async (attemptId, isSuccess, errorDetails = null)
       total_stage_errors: (existingErrors.stage_errors || []).length
     };
     
-    if (IS_DEV) console.log('📝 Merging error details:', {
+    console.log('📝 Merging error details:', {
       hasStageErrors,
       stageErrorCount: (existingErrors.stage_errors || []).length,
       hasFinalError: !!errorDetails
@@ -444,7 +471,8 @@ export const completeAttempt = async (attemptId, isSuccess, errorDetails = null)
 };
 
 // 記錄 stage 錯誤（不結束 attempt）
-export const recordStageError = async (attemptId, stageError) => {
+export const recordStageError = async (attemptId, stageError, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   // 獲取現有的錯誤記錄
   const { data: attempt, error: fetchError } = await supabaseAdmin
     .from('user_attempts')
@@ -453,7 +481,7 @@ export const recordStageError = async (attemptId, stageError) => {
     .single();
 
   if (fetchError) {
-    if (IS_DEV) console.error('❌ Failed to fetch attempt for stage error:', fetchError);
+    console.error('❌ Failed to fetch attempt for stage error:', fetchError);
     throw fetchError;
   }
 
@@ -472,7 +500,7 @@ export const recordStageError = async (attemptId, stageError) => {
     stage_errors: stageErrors
   };
 
-  if (IS_DEV) console.log('📝 Recording stage error:', {
+  console.log('📝 Recording stage error:', {
     attemptId,
     stage: stageError.stage,
     errorType: stageError.error_type,
@@ -493,7 +521,8 @@ export const recordStageError = async (attemptId, stageError) => {
   return data;
 };
 
-export const getUserAttempts = async (userId) => {
+export const getUserAttempts = async (userId, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('user_attempts')
     .select(`
@@ -509,7 +538,8 @@ export const getUserAttempts = async (userId) => {
 
 // ===== 最終報告操作 =====
 
-export const getAllFinalReports = async () => {
+export const getAllFinalReports = async (env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('user_final_reports')
     .select('*, users(username)')
@@ -519,7 +549,8 @@ export const getAllFinalReports = async () => {
   return data;
 };
 
-export const getUserFinalReport = async (userId) => {
+export const getUserFinalReport = async (userId, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('user_final_reports')
     .select('*')
@@ -530,7 +561,8 @@ export const getUserFinalReport = async (userId) => {
   return data;
 };
 
-export const updateReportAIAnalysis = async (userId, aiAnalysis) => {
+export const updateReportAIAnalysis = async (userId, aiAnalysis, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   const { data, error } = await supabaseAdmin
     .from('user_final_reports')
     .update({
@@ -545,7 +577,8 @@ export const updateReportAIAnalysis = async (userId, aiAnalysis) => {
   return data;
 };
 
-export const generateFinalReport = async (userId) => {
+export const generateFinalReport = async (userId, env) => {
+  const { supabaseAdmin } = initSupabase(env);
   // 1. 取得該用戶所有答題紀錄（含關卡資訊）
   const { data: attempts, error: attemptsError } = await supabaseAdmin
     .from('user_attempts')
@@ -561,7 +594,7 @@ export const generateFinalReport = async (userId) => {
     throw new Error('No attempts found for this user');
   }
 
-  if (IS_DEV) console.log(`📊 Generating final report for user ${userId}, total attempts: ${attempts.length}`);
+  console.log(`📊 Generating final report for user ${userId}, total attempts: ${attempts.length}`);
 
   // 2. 按 scenario_code 分組統計
   const scenarioMap = {};
@@ -743,7 +776,7 @@ export const generateFinalReport = async (userId) => {
     updated_at: now
   };
 
-  if (IS_DEV) console.log('📝 Report data prepared:', {
+  console.log('📝 Report data prepared:', {
     total_scenarios_completed: reportData.total_scenarios_completed,
     total_time_ms: reportData.total_time_ms,
     overall_success_rate: reportData.overall_success_rate,
@@ -758,7 +791,7 @@ export const generateFinalReport = async (userId) => {
     .single();
 
   if (reportError) throw reportError;
-  if (IS_DEV) console.log('✅ Final report saved, report_id:', report.report_id);
+  console.log('✅ Final report saved, report_id:', report.report_id);
 
   // 10. 刪除該用戶的 user_attempts 紀錄
   const { error: deleteAttemptsError } = await supabaseAdmin
@@ -767,9 +800,9 @@ export const generateFinalReport = async (userId) => {
     .eq('user_id', userId);
 
   if (deleteAttemptsError) {
-    if (IS_DEV) console.error('⚠️ Failed to delete user_attempts:', deleteAttemptsError);
+    console.error('⚠️ Failed to delete user_attempts:', deleteAttemptsError);
   } else {
-    if (IS_DEV) console.log('🗑️ Deleted user_attempts for user:', userId);
+    console.log('🗑️ Deleted user_attempts for user:', userId);
   }
 
   // 11. 刪除該用戶的 user_progress 紀錄
@@ -779,12 +812,11 @@ export const generateFinalReport = async (userId) => {
     .eq('user_id', userId);
 
   if (deleteProgressError) {
-    if (IS_DEV) console.error('⚠️ Failed to delete user_progress:', deleteProgressError);
+    console.error('⚠️ Failed to delete user_progress:', deleteProgressError);
   } else {
-    if (IS_DEV) console.log('🗑️ Deleted user_progress for user:', userId);
+    console.log('🗑️ Deleted user_progress for user:', userId);
   }
 
   return report;
 };
 
-export default supabase;

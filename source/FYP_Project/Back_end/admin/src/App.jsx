@@ -10,7 +10,7 @@ import './App.css';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(
-    () => sessionStorage.getItem('admin_auth') === 'true'
+    () => !!sessionStorage.getItem('admin_token')
   );
   const [language, setLanguage] = useState(
     () => sessionStorage.getItem('admin_lang') || 'en'
@@ -19,7 +19,7 @@ function App() {
   const handleLogin = () => setIsAuthenticated(true);
 
   const handleLogout = () => {
-    sessionStorage.removeItem('admin_auth');
+    sessionStorage.removeItem('admin_token');
     setIsAuthenticated(false);
   };
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getUsers, searchUsers, getUserProgress, getUserAttempts, deleteUser } from '../api';
+import { getUsers, searchUsers, getUserAttempts, deleteUser } from '../api';
 import DataTable from '../components/DataTable';
 
 const Users = ({ language }) => {
@@ -14,12 +14,18 @@ const Users = ({ language }) => {
   const [deleting, setDeleting] = useState(false);
   const debounceTimer = useRef(null);
 
+  const statusLabel = (code) => {
+    if (!code) return isZh ? '未開始' : 'Not Started';
+    if (code === 'completed') return isZh ? '✅ 已完成' : '✅ Completed';
+    return `🔄 ${code}`;
+  };
+
   const columns = [
     { key: 'username', label: isZh ? '用戶名' : 'Username' },
+    { key: 'current_scenario_code', label: isZh ? '進度狀態' : 'Status', render: (val) => statusLabel(val) },
     { key: 'preferred_language', label: isZh ? '語言' : 'Language' },
     { key: 'consent_given', label: isZh ? '同意' : 'Consent', render: (val) => val ? '✅' : '❌' },
-    { key: 'created_at', label: isZh ? '創建日期' : 'Created At', render: (val) => new Date(val).toLocaleDateString() },
-    { key: 'last_login_at', label: isZh ? '最後登入' : 'Last Login', render: (val) => val ? new Date(val).toLocaleDateString() : (isZh ? '從未' : 'Never') }
+    { key: 'created_at', label: isZh ? '創建日期' : 'Created At', render: (val) => new Date(val).toLocaleDateString() }
   ];
 
   useEffect(() => {
@@ -68,17 +74,13 @@ const Users = ({ language }) => {
     setSelectedUser(user);
     setDetailsLoading(true);
     try {
-      const [progressRes, attemptsRes] = await Promise.all([
-        getUserProgress(user.user_id),
-        getUserAttempts(user.user_id)
-      ]);
+      const attemptsRes = await getUserAttempts(user.user_id);
       setUserDetails({
-        progress: progressRes.data || [],
         attempts: attemptsRes.data || []
       });
     } catch (error) {
       console.error('Failed to fetch user details:', error);
-      setUserDetails({ progress: [], attempts: [] });
+      setUserDetails({ attempts: [] });
     } finally {
       setDetailsLoading(false);
     }
@@ -149,26 +151,39 @@ const Users = ({ language }) => {
               <div className="loading">{isZh ? '載入詳情中...' : 'Loading details...'}</div>
             ) : (
               <>
-                <div className="detail-section">
-                  <h4>📊 {isZh ? '進度' : 'Progress'} ({userDetails?.progress?.length || 0})</h4>
-                  {userDetails?.progress?.length > 0 ? (
-                    <ul>
-                      {userDetails.progress.map((p, i) => (
-                        <li key={i}>
-                          {(isZh ? p.scenarios?.title_zh : p.scenarios?.title_en) || p.scenario_id}: <strong>{p.status}</strong>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>{isZh ? '尚無進度' : 'No progress yet'}</p>
-                  )}
+                {/* User Info Summary */}
+                <div className="detail-section user-info-grid">
+                  <h4>👤 {isZh ? '基本資料' : 'User Info'}</h4>
+                  <div className="info-grid">
+                    <div className="info-item">
+                      <span className="info-label">{isZh ? '用戶 ID' : 'User ID'}</span>
+                      <span className="info-value mono">{selectedUser.user_id}</span>
+                    </div>
+                    <div className="info-item">
+                      <span className="info-label">{isZh ? '語言' : 'Language'}</span>
+                      <span className="info-value">{selectedUser.preferred_language === 'zh' ? '中文' : 'English'}</span>
+                    </div>
+                    <div className="info-item">
+                      <span className="info-label">{isZh ? '進度狀態' : 'Status'}</span>
+                      <span className="info-value">{statusLabel(selectedUser.current_scenario_code)}</span>
+                    </div>
+                    <div className="info-item">
+                      <span className="info-label">{isZh ? '註冊日期' : 'Registered'}</span>
+                      <span className="info-value">{new Date(selectedUser.created_at).toLocaleString()}</span>
+                    </div>
+                    <div className="info-item">
+                      <span className="info-label">{isZh ? '同意書' : 'Consent'}</span>
+                      <span className="info-value">{selectedUser.consent_given ? '✅' : '❌'}</span>
+                    </div>
+                  </div>
                 </div>
 
+                {/* Attempts Section */}
                 <div className="detail-section">
                   <h4>🎯 {isZh ? '嘗試記錄' : 'Attempts'} ({userDetails?.attempts?.length || 0})</h4>
                   {userDetails?.attempts?.length > 0 ? (
                     <ul>
-                      {userDetails.attempts.slice(0, 10).map((a, i) => (
+                      {userDetails.attempts.slice(0, 20).map((a, i) => (
                         <li key={i}>
                           {(isZh ? a.scenarios?.title_zh : a.scenarios?.title_en) || a.scenario_id}: 
                           {a.is_success ? ' ✅' : ' ❌'} 

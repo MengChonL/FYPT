@@ -331,7 +331,7 @@ async function seedDatabase() {
     console.log(`   - Scenario Types: ${typesData.length}`);
     console.log(`   - Scenarios: ${scenariosData.length}`);
     console.log('\n🔗 你可以在 Supabase Dashboard 查看資料：');
-    console.log(`   ${process.env.SUPABASE_URL}`);
+    console.log(`   ${process.env.SUPABASE_URL?.replace(/\/\/(.+?)@/, '//*****@').slice(0, 40)}...`);
 
   } catch (error) {
     console.error('❌ 導入失敗:', error.message);

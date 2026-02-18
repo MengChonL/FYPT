@@ -32,6 +32,10 @@ export const GameProvider = ({ children }) => {
   // 防止並發創建 attempt
   const isCreatingAttempt = useRef(false);
 
+  // Ref 追蹤最新的 currentScenarioCode（供 useCallback 中使用，避免 stale closure）
+  const currentScenarioCodeRef = useRef(currentScenarioCode);
+  useEffect(() => { currentScenarioCodeRef.current = currentScenarioCode; }, [currentScenarioCode]);
+
   // 從 scenarios 動態計算順序（按 display_order 排序）
   const getScenarioOrder = () => {
     if (scenarios.length === 0) return [];
@@ -88,14 +92,14 @@ export const GameProvider = ({ children }) => {
     const loadGameData = async () => {
       try {
         setLoading(true);
-        console.log('📦 Loading game data...');
+        if (import.meta.env.DEV) console.log('📦 Loading game data...');
         const [phasesData, scenariosData] = await Promise.all([
           getPhases(),
           getScenarios()
         ]);
 
-        console.log('📦 Phases loaded:', phasesData?.length);
-        console.log('📦 Scenarios loaded:', scenariosData?.length);
+        if (import.meta.env.DEV) console.log('📦 Phases loaded:', phasesData?.length);
+        if (import.meta.env.DEV) console.log('📦 Scenarios loaded:', scenariosData?.length);
         setPhases(phasesData || []);
         setScenarios(scenariosData || []);
       } catch (err) {
@@ -115,14 +119,14 @@ export const GameProvider = ({ children }) => {
       if (!userId) return;
       
       try {
-        console.log('📊 Loading user progress for:', userId);
+        if (import.meta.env.DEV) console.log('📊 Loading user progress for:', userId);
         const progressData = await getUserProgress(userId);
-        console.log('📊 Progress data:', progressData);
+        if (import.meta.env.DEV) console.log('📊 Progress data:', progressData);
         
         // 新格式：{ current_scenario_code: 'phase1-2' }
         if (progressData?.current_scenario_code) {
           setCurrentScenarioCode(progressData.current_scenario_code);
-          console.log('📊 Current scenario:', progressData.current_scenario_code);
+          if (import.meta.env.DEV) console.log('📊 Current scenario:', progressData.current_scenario_code);
         }
       } catch (err) {
         console.error('Failed to load user progress:', err);
@@ -148,25 +152,31 @@ export const GameProvider = ({ children }) => {
     localStorage.removeItem('dataConsent');
     localStorage.removeItem('web3Experience');
     localStorage.removeItem('consentTimestamp');
-    console.log('🚪 User logged out');
+    if (import.meta.env.DEV) console.log('🚪 User logged out');
   };
 
   // 更新進度 - 只更新當前關卡到下一關
   const updateProgress = async (nextScenarioCode) => {
-    console.log('📝 GameContext updateProgress called:', { userId, nextScenarioCode });
+    if (import.meta.env.DEV) console.log('📝 GameContext updateProgress called:', { userId, nextScenarioCode });
     
+    // 已完成所有關卡的用戶，不允許更改 current_scenario_code
+    if (currentScenarioCodeRef.current === 'completed') {
+      if (import.meta.env.DEV) console.log('ℹ️ User already completed, current_scenario_code stays as completed');
+      return;
+    }
+
     if (!userId) {
-      console.warn('⚠️ No userId in updateProgress');
+      if (import.meta.env.DEV) console.warn('⚠️ No userId in updateProgress');
       return;
     }
     
     try {
-      console.log('🌐 Calling API updateProgress...');
+      if (import.meta.env.DEV) console.log('🌐 Calling API updateProgress...');
       const result = await apiUpdateProgress(userId, nextScenarioCode, 'current');
-      console.log('✅ API response:', result);
+      if (import.meta.env.DEV) console.log('✅ API response:', result);
       
       setCurrentScenarioCode(nextScenarioCode);
-      console.log('✅ Local state updated to:', nextScenarioCode);
+      if (import.meta.env.DEV) console.log('✅ Local state updated to:', nextScenarioCode);
     } catch (err) {
       console.error('❌ Failed to update progress:', err);
     }
@@ -174,10 +184,16 @@ export const GameProvider = ({ children }) => {
 
   // 完成關卡並解鎖下一關 - 簡化版本
   const completeScenarioAndUnlockNext = useCallback(async (scenarioCode, nextScenarioCode, isSuccess = true, errorDetails = null) => {
-    console.log('🎯 completeScenarioAndUnlockNext called:', { scenarioCode, nextScenarioCode, userId, isSuccess });
+    if (import.meta.env.DEV) console.log('🎯 completeScenarioAndUnlockNext called:', { scenarioCode, nextScenarioCode, userId, isSuccess });
     
+    // 已完成所有關卡的用戶，不記錄任何資料到 DB
+    if (currentScenarioCodeRef.current === 'completed') {
+      if (import.meta.env.DEV) console.log('ℹ️ User already completed all scenarios, skipping DB record');
+      return;
+    }
+
     if (!userId) {
-      console.warn('⚠️ No userId, cannot update progress');
+      if (import.meta.env.DEV) console.warn('⚠️ No userId, cannot update progress');
       return;
     }
 
@@ -187,9 +203,9 @@ export const GameProvider = ({ children }) => {
       
       // 記錄答題結果到 user_attempts
       if (attemptId) {
-        console.log('📝 Recording attempt result:', { attemptId, isSuccess, errorDetails });
+        if (import.meta.env.DEV) console.log('📝 Recording attempt result:', { attemptId, isSuccess, errorDetails });
         await apiCompleteAttempt(attemptId, isSuccess, errorDetails);
-        console.log('✅ Attempt result recorded successfully');
+        if (import.meta.env.DEV) console.log('✅ Attempt result recorded successfully');
         // 清除 attempt ID
         currentAttemptIdRef.current = null;
         setCurrentAttemptId(null);
@@ -213,14 +229,14 @@ export const GameProvider = ({ children }) => {
         if (nextScenarioCode) {
           // 更新到下一關
           await updateProgress(nextScenarioCode);
-          console.log(`✅ 已完成 ${scenarioCode}，進入 ${nextScenarioCode}`);
+          if (import.meta.env.DEV) console.log(`✅ 已完成 ${scenarioCode}，進入 ${nextScenarioCode}`);
         } else {
           // 沒有下一關，表示全部完成，設置為 'completed'
           await updateProgress('completed');
-          console.log(`🎉 已完成所有關卡！最後完成: ${scenarioCode}`);
+          if (import.meta.env.DEV) console.log(`🎉 已完成所有關卡！最後完成: ${scenarioCode}`);
         }
       } else {
-        console.log(`❌ 關卡失敗: ${scenarioCode}，錯誤: ${errorDetails?.error_type || 'unknown'}`);
+        if (import.meta.env.DEV) console.log(`❌ 關卡失敗: ${scenarioCode}，錯誤: ${errorDetails?.error_type || 'unknown'}`);
       }
     } catch (err) {
       console.error('❌ Failed to complete scenario:', err);
@@ -229,17 +245,23 @@ export const GameProvider = ({ children }) => {
 
   // 記錄 stage 錯誤（不結束 attempt，用於多階段關卡）
   const recordStageError = useCallback(async (stageError) => {
+    // 已完成所有關卡的用戶，不記錄
+    if (currentScenarioCodeRef.current === 'completed') {
+      if (import.meta.env.DEV) console.log('ℹ️ User already completed, skipping stage error record');
+      return;
+    }
+
     const attemptId = currentAttemptIdRef.current;
     
     if (!attemptId) {
-      console.warn('⚠️ No current attempt ID, cannot record stage error');
+      if (import.meta.env.DEV) console.warn('⚠️ No current attempt ID, cannot record stage error');
       return;
     }
 
     try {
-      console.log('📝 Recording stage error:', { attemptId, stage: stageError?.stage, error_type: stageError?.error_type });
+      if (import.meta.env.DEV) console.log('📝 Recording stage error:', { attemptId, stage: stageError?.stage, error_type: stageError?.error_type });
       await apiRecordStageError(attemptId, stageError);
-      console.log('✅ Stage error recorded');
+      if (import.meta.env.DEV) console.log('✅ Stage error recorded');
     } catch (err) {
       console.error('❌ Failed to record stage error:', err);
     }
@@ -253,6 +275,12 @@ export const GameProvider = ({ children }) => {
   }, [scenarios]);
 
   const startScenarioAttempt = useCallback(async (scenarioCode) => {
+    // 已完成所有關卡的用戶，不建立 attempt 記錄
+    if (currentScenarioCodeRef.current === 'completed') {
+      console.log('ℹ️ User already completed all scenarios, skipping attempt creation');
+      return null;
+    }
+
     if (!userId) {
       console.warn('⚠️ No userId, cannot start attempt');
       return null;
@@ -311,6 +339,9 @@ export const GameProvider = ({ children }) => {
 
   // 取得場景狀態 - 基於 currentScenarioCode 計算
   const getScenarioStatus = (scenarioCode) => {
+    // 如果所有關卡已完成，所有場景都是 completed
+    if (currentScenarioCode === 'completed') return 'completed';
+
     // 標準化輸入和當前的 scenario code（都轉為新格式）
     const normalizedQuery = normalizeScenarioCode(scenarioCode);
     const normalizedCurrent = normalizeScenarioCode(currentScenarioCode);
@@ -385,6 +416,9 @@ export const GameProvider = ({ children }) => {
 
   // 檢查場景是否可以開始
   const canStartScenario = (scenarioCode) => {
+    // 如果所有關卡已完成，所有場景都可以開始
+    if (currentScenarioCode === 'completed') return true;
+
     // 標準化 scenario code
     const normalizedCode = normalizeScenarioCode(scenarioCode);
     const normalizedCurrent = normalizeScenarioCode(currentScenarioCode);
@@ -400,6 +434,9 @@ export const GameProvider = ({ children }) => {
 
   // 檢查階段是否可以開始
   const canStartPhase = (phaseCode) => {
+    // 如果所有關卡已完成，所有階段都可以開始
+    if (currentScenarioCode === 'completed') return true;
+
     // 標準化當前 scenario code
     const normalizedCurrent = normalizeScenarioCode(currentScenarioCode);
     

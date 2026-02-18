@@ -97,131 +97,146 @@ const UserStatistics = ({ userId, language = 'chinese', onClose }) => {
           </h2>
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 text-white hover:text-red-400 text-2xl font-bold"
+            className="absolute top-2 right-4 text-red-500 hover:text-red-600 font-bold cursor-pointer transition-colors"
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '0',
+              lineHeight: '1',
+              fontSize: '40px',
+              width: '48px',
+              height: '35x',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
           >
             ✕
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* Overall Statistics */}
-          <div className="bg-[#2d3748] p-6 rounded-lg border-2 border-cyan-400">
-            <h3 className="text-xl font-bold text-cyan-400 mb-4 font-mono">
-              {language === 'chinese' ? '整體表現' : 'Overall Performance'}
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div className="bg-[#1a1b26] p-4 rounded border border-cyan-400/30">
-                <p className="text-gray-400 text-sm font-mono">
-                  {language === 'chinese' ? '總嘗試次數' : 'Total Attempts'}
-                </p>
-                <p className="text-2xl font-bold text-white">{overall.total_attempts}</p>
-              </div>
-              <div className="bg-[#1a1b26] p-4 rounded border border-green-400/30">
-                <p className="text-gray-400 text-sm font-mono">
-                  {language === 'chinese' ? '成功次數' : 'Success Count'}
-                </p>
-                <p className="text-2xl font-bold text-green-400">{overall.success_attempts}</p>
-              </div>
-              <div className="bg-[#1a1b26] p-4 rounded border border-red-400/30">
-                <p className="text-gray-400 text-sm font-mono">
-                  {language === 'chinese' ? '失敗次數' : 'Failed Count'}
-                </p>
-                <p className="text-2xl font-bold text-red-400">{overall.failed_attempts}</p>
-              </div>
-              <div className="bg-[#1a1b26] p-4 rounded border border-yellow-400/30">
-                <p className="text-gray-400 text-sm font-mono">
-                  {language === 'chinese' ? '成功率' : 'Success Rate'}
-                </p>
-                <p className="text-2xl font-bold text-yellow-400">{overall.success_rate}%</p>
-              </div>
-              <div className="bg-[#1a1b26] p-4 rounded border border-purple-400/30">
-                <p className="text-gray-400 text-sm font-mono">
-                  {language === 'chinese' ? '平均答題時間' : 'Avg Time'}
-                </p>
-                <p className="text-2xl font-bold text-purple-400">{formatTime(overall.avg_time_ms)}</p>
-              </div>
-              <div className="bg-[#1a1b26] p-4 rounded border border-blue-400/30">
-                <p className="text-gray-400 text-sm font-mono">
-                  {language === 'chinese' ? '總答題時間' : 'Total Time'}
-                </p>
-                <p className="text-2xl font-bold text-blue-400">{formatTime(overall.total_time_ms)}</p>
+        <div className="p-6">
+          {/* Combined Statistics Container */}
+          <div className="bg-[#2d3748] p-6 rounded-lg border-2 border-cyan-400 space-y-6">
+            {/* Overall Statistics */}
+            <div>
+              <h3 className="text-xl font-bold text-cyan-400 mb-4 font-mono">
+                {language === 'chinese' ? '整體表現' : 'Overall Performance'}
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="bg-[#1a1b26] p-4 rounded border border-cyan-400/30">
+                  <p className="text-gray-400 text-sm font-mono">
+                    {language === 'chinese' ? '總嘗試次數' : 'Total Attempts'}
+                  </p>
+                  <p className="text-2xl font-bold text-white">{overall.total_attempts}</p>
+                </div>
+                <div className="bg-[#1a1b26] p-4 rounded border border-green-400/30">
+                  <p className="text-gray-400 text-sm font-mono">
+                    {language === 'chinese' ? '成功次數' : 'Success Count'}
+                  </p>
+                  <p className="text-2xl font-bold text-green-400">{overall.success_attempts}</p>
+                </div>
+                <div className="bg-[#1a1b26] p-4 rounded border border-red-400/30">
+                  <p className="text-gray-400 text-sm font-mono">
+                    {language === 'chinese' ? '失敗次數' : 'Failed Count'}
+                  </p>
+                  <p className="text-2xl font-bold text-red-400">{overall.failed_attempts}</p>
+                </div>
+                <div className="bg-[#1a1b26] p-4 rounded border border-yellow-400/30">
+                  <p className="text-gray-400 text-sm font-mono">
+                    {language === 'chinese' ? '成功率' : 'Success Rate'}
+                  </p>
+                  <p className="text-2xl font-bold text-yellow-400">{overall.success_rate}%</p>
+                </div>
+                <div className="bg-[#1a1b26] p-4 rounded border border-purple-400/30">
+                  <p className="text-gray-400 text-sm font-mono">
+                    {language === 'chinese' ? '平均答題時間' : 'Avg Time'}
+                  </p>
+                  <p className="text-2xl font-bold text-purple-400">{formatTime(overall.avg_time_ms)}</p>
+                </div>
+                <div className="bg-[#1a1b26] p-4 rounded border border-blue-400/30">
+                  <p className="text-gray-400 text-sm font-mono">
+                    {language === 'chinese' ? '總答題時間' : 'Total Time'}
+                  </p>
+                  <p className="text-2xl font-bold text-blue-400">{formatTime(overall.total_time_ms)}</p>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Per Scenario Statistics */}
-          <div className="bg-[#2d3748] p-6 rounded-lg border-2 border-cyan-400">
-            <h3 className="text-xl font-bold text-cyan-400 mb-4 font-mono">
-              {language === 'chinese' ? '各關卡表現' : 'Performance by Scenario'}
-            </h3>
-            <div className="space-y-4">
-              {by_scenario.map((scenario) => (
-                <div
-                  key={scenario.scenario_code}
-                  className="bg-[#1a1b26] p-4 rounded border border-cyan-400/30"
-                >
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <h4 className="text-lg font-bold text-white font-mono">
-                        {language === 'chinese' ? scenario.scenario_title_zh : scenario.scenario_title_en}
-                      </h4>
-                      <p className="text-sm text-gray-400 font-mono">{scenario.scenario_code}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-400">
-                        {language === 'chinese' ? '成功率' : 'Success Rate'}
-                      </p>
-                      <p className="text-xl font-bold text-yellow-400">{scenario.success_rate}%</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div>
-                      <p className="text-gray-400">
-                        {language === 'chinese' ? '嘗試' : 'Attempts'}
-                      </p>
-                      <p className="text-white font-bold">{scenario.total_attempts}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">
-                        {language === 'chinese' ? '成功' : 'Success'}
-                      </p>
-                      <p className="text-green-400 font-bold">{scenario.success_count}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">
-                        {language === 'chinese' ? '失敗' : 'Failed'}
-                      </p>
-                      <p className="text-red-400 font-bold">{scenario.fail_count}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-400">
-                        {language === 'chinese' ? '平均時間' : 'Avg Time'}
-                      </p>
-                      <p className="text-purple-400 font-bold">{formatTime(scenario.avg_time_ms)}</p>
-                    </div>
-                  </div>
-
-                  {/* Error Types */}
-                  {scenario.error_types && Object.keys(scenario.error_types).length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-700">
-                      <p className="text-gray-400 text-sm mb-2">
-                        {language === 'chinese' ? '錯誤類型統計：' : 'Error Types:'}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(scenario.error_types).map(([type, count]) => (
-                          <span
-                            key={type}
-                            className="px-2 py-1 bg-red-900/30 border border-red-400/30 rounded text-red-400 text-xs font-mono"
-                          >
-                            {type}: {count}
-                          </span>
-                        ))}
+            {/* Per Scenario Statistics */}
+            <div>
+              <h3 className="text-xl font-bold text-cyan-400 mb-4 font-mono">
+                {language === 'chinese' ? '各關卡表現' : 'Performance by Scenario'}
+              </h3>
+              <div className="space-y-4">
+                {by_scenario.map((scenario) => (
+                  <div
+                    key={scenario.scenario_code}
+                    className="bg-[#1a1b26] p-4 rounded border border-cyan-400/30"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <div>
+                        <h4 className="text-lg font-bold text-white font-mono">
+                          {language === 'chinese' ? scenario.scenario_title_zh : scenario.scenario_title_en}
+                        </h4>
+                        <p className="text-sm text-gray-400 font-mono">{scenario.scenario_code}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-400">
+                          {language === 'chinese' ? '成功率' : 'Success Rate'}
+                        </p>
+                        <p className="text-xl font-bold text-yellow-400">{scenario.success_rate}%</p>
                       </div>
                     </div>
-                  )}
-                </div>
-              ))}
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div>
+                        <p className="text-gray-400">
+                          {language === 'chinese' ? '嘗試' : 'Attempts'}
+                        </p>
+                        <p className="text-white font-bold">{scenario.total_attempts}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">
+                          {language === 'chinese' ? '成功' : 'Success'}
+                        </p>
+                        <p className="text-green-400 font-bold">{scenario.success_count}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">
+                          {language === 'chinese' ? '失敗' : 'Failed'}
+                        </p>
+                        <p className="text-red-400 font-bold">{scenario.fail_count}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">
+                          {language === 'chinese' ? '平均時間' : 'Avg Time'}
+                        </p>
+                        <p className="text-purple-400 font-bold">{formatTime(scenario.avg_time_ms)}</p>
+                      </div>
+                    </div>
+
+                    {/* Error Types */}
+                    {scenario.error_types && Object.keys(scenario.error_types).length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-700">
+                        <p className="text-gray-400 text-sm mb-2">
+                          {language === 'chinese' ? '錯誤類型統計：' : 'Error Types:'}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(scenario.error_types).map(([type, count]) => (
+                            <span
+                              key={type}
+                              className="px-2 py-1 bg-red-900/30 border border-red-400/30 rounded text-red-400 text-xs font-mono"
+                            >
+                              {type}: {count}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -230,9 +245,9 @@ const UserStatistics = ({ userId, language = 'chinese', onClose }) => {
         <div className="p-4 bg-[#2d3748] rounded-b-lg border-t-2 border-cyan-400 flex justify-center">
           <button
             onClick={onClose}
-            className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded font-mono transition-colors"
+            className="bg-white text-black border-4 border-black px-12 py-3 font-black text-lg tracking-widest hover:bg-gray-100 shadow-[4px_4px_0px_rgba(0,0,0,0.5)] font-mono transition-colors"
           >
-            {language === 'chinese' ? '關閉' : 'Close'}
+            {language === 'chinese' ? '返回' : 'Return'}
           </button>
         </div>
       </motion.div>

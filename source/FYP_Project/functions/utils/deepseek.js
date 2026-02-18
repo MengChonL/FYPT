@@ -1,20 +1,31 @@
 import OpenAI from 'openai';
-import dotenv from 'dotenv';
-dotenv.config();
 
-const IS_DEV = process.env.NODE_ENV !== 'production';
+/**
+ * 初始化 DeepSeek 客户端
+ * @param {Object} env - 环境变量对象
+ */
+const initDeepSeek = (env) => {
+  const DEEPSEEK_API_KEY = env?.DEEPSEEK_API_KEY || (typeof process !== 'undefined' ? process.env.DEEPSEEK_API_KEY : null);
+  
+  if (!DEEPSEEK_API_KEY) {
+    throw new Error('Missing DEEPSEEK_API_KEY environment variable');
+  }
 
-const client = new OpenAI({
-  baseURL: 'https://api.deepseek.com',
-  apiKey: process.env.DEEPSEEK_API_KEY,
-});
+  return new OpenAI({
+    baseURL: 'https://api.deepseek.com',
+    apiKey: DEEPSEEK_API_KEY,
+  });
+};
 
 /**
  * 使用 DeepSeek V3 AI 分析用戶的訓練報告數據，生成個人化的分析報告
  * @param {Object} reportData - user_final_reports 中的完整報告數據
+ * @param {Object} env - 环境变量对象
  * @returns {Object} AI 分析結果 { summary_zh, summary_en, recommendations_zh, recommendations_en, risk_profile }
  */
-export const generateAIAnalysis = async (reportData) => {
+export const generateAIAnalysis = async (reportData, env) => {
+  const client = initDeepSeek(env);
+  
   // 關卡代碼 → 中英名稱對照
   const SCENARIO_NAMES = {
     'phase1-1': { zh: '下載錢包', en: 'Download Wallet' },
@@ -200,14 +211,14 @@ ${errorText.length > 0 ? errorText.map(e => `- ${e.en}`).join('\n') : '- No erro
         cleanText = cleanText.trim();
 
         const analysis = JSON.parse(cleanText);
-        if (IS_DEV) console.log('✅ DeepSeek AI analysis generated successfully');
+        console.log('✅ DeepSeek AI analysis generated successfully');
         return analysis;
       } catch (err) {
         lastError = err;
         // 如果是 429 限流錯誤，等待後重試
         if (err.status === 429 || (err.message && err.message.includes('429'))) {
           const waitSec = (attempt + 1) * 6;
-          if (IS_DEV) console.log(`⏳ Rate limited, retrying in ${waitSec}s... (attempt ${attempt + 1}/3)`);
+          console.log(`⏳ Rate limited, retrying in ${waitSec}s... (attempt ${attempt + 1}/3)`);
           await new Promise(resolve => setTimeout(resolve, waitSec * 1000));
           continue;
         }
@@ -216,7 +227,7 @@ ${errorText.length > 0 ? errorText.map(e => `- ${e.en}`).join('\n') : '- No erro
     }
     throw lastError; // 3 次重試後仍失敗
   } catch (error) {
-    if (IS_DEV) console.error('❌ DeepSeek AI analysis failed:', error.message);
+    console.error('❌ DeepSeek AI analysis failed:', error.message);
     // 返回 fallback 結構，不影響主流程
     return {
       summary_zh: '由於 AI 服務暫時不可用，無法生成詳細分析。請參考上方的統計數據。',
@@ -236,3 +247,4 @@ ${errorText.length > 0 ? errorText.map(e => `- ${e.en}`).join('\n') : '- No erro
     };
   }
 };
+

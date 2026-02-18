@@ -62,7 +62,8 @@ const PhaseRoadmap2 = ({ language, setLanguage, onSelectChallenge, onClose, onOp
     return currentChallenge?.id || challenges[0].id;
   };
 
-  const currentPos = getCurrentChallengeId();
+  // Fox follows user clicks; defaults to current scenario position
+  const foxPos = selectedChallengeId || getCurrentChallengeId();
 
   // 檢查挑戰是否鎖定
   const isChallengeUnlocked = (challenge) => {
@@ -239,14 +240,14 @@ const PhaseRoadmap2 = ({ language, setLanguage, onSelectChallenge, onClose, onOp
           <div className="relative z-10 w-full h-full flex items-center justify-between px-8 md:px-12">
             {challenges.map((challenge, index) => {
               const isSelected = selectedChallengeId === challenge.id;
-              const isCurrentPos = currentPos === challenge.id;
+              const isFoxHere = foxPos === challenge.id;
               const iconColorClass = getIconColorClass(challenge.iconType);
               const isUnlocked = isChallengeUnlocked(challenge);
 
               return (
                 <div key={challenge.id} className="relative flex flex-col items-center w-28">
                   {/* 玩家狐狸 (X軸與按鈕對齊，Y軸上方) */}
-                  {isCurrentPos && isUnlocked && (
+                  {isFoxHere && isUnlocked && (
                     <motion.div
                       animate={{ y: [0, -5, 0] }}
                       transition={{ repeat: Infinity, duration: 0.8 }}

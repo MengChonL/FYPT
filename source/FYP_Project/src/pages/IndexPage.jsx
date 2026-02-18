@@ -118,7 +118,7 @@ const IndexPage = () => {
   };
 
   const handleConsent = async (consentData) => {
-    console.log('用戶同意數據:', consentData);
+    if (import.meta.env.DEV) console.log('用戶同意數據:', consentData);
     setIsCreatingUser(true);
     setLoginError('');
     
@@ -133,7 +133,7 @@ const IndexPage = () => {
         hasExperience
       );
       
-      console.log('✅ 用戶創建成功:', userData);
+      if (import.meta.env.DEV) console.log('✅ 用戶創建成功:', userData);
       
       // 存儲用戶 ID 到 GameContext
       if (userData && userData.user_id) {
@@ -167,14 +167,14 @@ const IndexPage = () => {
 
   // 處理已有賬戶登入
   const handleLogin = async (loginData) => {
-    console.log('用戶登入:', loginData);
+    if (import.meta.env.DEV) console.log('用戶登入:', loginData);
     setIsCreatingUser(true);
     setLoginError('');
     
     try {
       const userData = await loginByUsername(loginData.username);
       
-      console.log('✅ 用戶登入成功:', userData);
+      if (import.meta.env.DEV) console.log('✅ 用戶登入成功:', userData);
       
       if (userData && userData.user_id) {
         setUser(userData.user_id);
@@ -195,7 +195,7 @@ const IndexPage = () => {
       navigate('/game');
     } catch (error) {
       console.error('❌ 登入失敗:', error);
-      if (error.message.includes('404') || error.message.includes('not found')) {
+      if (error.message.includes('401') || error.message.includes('404') || error.message.includes('not found')) {
         setLoginError(loginData.language === 'chinese' 
           ? '找不到此用戶名，請確認輸入或創建新賬戶' 
           : 'Username not found. Please check your input or create a new account.');

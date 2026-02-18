@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-<<<<<<< HEAD
 import { useGame } from '../../context/GameContext';
 import { useAttemptTracking } from '../../hooks/useAttemptTracking';
-=======
->>>>>>> 110bc78377dbd3e9223807e71df6fed82255b4b0
 import BrowserFrame from './BrowserFrame';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
@@ -27,7 +24,7 @@ const FirstDepositChallenge = ({ config, language: propLanguage }) => {
   const { getPhaseByScenarioCode, completeScenarioAndUnlockNext } = useGame();
   const { startTracking, recordStageError } = useAttemptTracking(config?.id);
   const [language, setLanguage] = useState(propLanguage || 'chinese');
-  const [view, setView] = useState('map');
+  const [view, setView] = useState('intro');
   const [activeTab, setActiveTab] = useState('discord');
   const [discordView, setDiscordView] = useState('chat');      // 'chat' | 'richbank'
   const [metamaskView, setMetamaskView] = useState('wallet');  // 'wallet' | 'topup' | 'buy'
@@ -152,12 +149,8 @@ const FirstDepositChallenge = ({ config, language: propLanguage }) => {
 
   // 初始化重置
   useEffect(() => {
-    // 如果從上一關跳轉過來，直接顯示 intro 頁面，跳過 roadmap
-    if (location.state?.skipToIntro) {
-      setView('intro');
-    } else {
-      setView('map');
-    }
+    // 直接顯示 intro 頁面（PhaseRoadmap 選擇已移至 GamePage）
+    setView('intro');
     setShowResult(false);
     setActiveTab('discord');
     setDiscordView('chat');
