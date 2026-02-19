@@ -1829,6 +1829,20 @@ const CentralizedPlatform = ({ config, language: propLanguage }) => {
             : stage === 2
             ? (language === 'chinese' ? '下一階段' : 'Next Stage') 
             : (language === 'chinese' ? '下一關' : 'Next Level')}
+          customStyles={{
+            container: {
+              width: '100vw',
+              height: '100vh',
+              maxHeight: '100vh',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              paddingTop: '20px',
+              paddingBottom: '20px'
+            }
+          }}
         />
       )}
     </ChallengeTemplate>

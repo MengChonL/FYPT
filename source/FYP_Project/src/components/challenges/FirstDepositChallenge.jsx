@@ -1223,6 +1223,17 @@ const FirstDepositChallenge = ({ config, language: propLanguage }) => {
             }
             onNextLevel={handleNextLevel}
             nextLevelButtonText={language === 'chinese' ? '下一關' : 'Next Level'}
+            // ★ 修改：在下方添加滑動條，且保留上方 Next Level 按鈕
+            customActionComponent={
+              isCorrect ? (
+                <div className="mt-4">
+                  <SlideConfirmButton 
+                    text={language === 'chinese' ? '滑動前往下一關' : 'SLIDE TO CONTINUE'}
+                    onConfirm={handleNextLevel}
+                  />
+                </div>
+              ) : null
+            }
           />
         </div>
       )}
