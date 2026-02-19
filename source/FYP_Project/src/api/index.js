@@ -3,7 +3,8 @@
 
 // In production on Cloudflare Pages, Functions live under the same origin at `/api`.
 // In local dev you can still override with VITE_API_URL (e.g. http://localhost:3001/api).
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+// Note: if VITE_API_URL is set to an empty string in the build environment, treat it as "not set".
+const API_BASE = (import.meta.env.VITE_API_URL || '').trim() || '/api';
 
 // ===== 通用 fetch 函數 =====
 async function fetchAPI(endpoint) {
