@@ -6,7 +6,8 @@ const BrowserFrame = ({
   urlColor = '#ffffff',
   showControls = true,
   tabs = null, 
-  className = "" // 新增：允許外部傳入 class 來控制大小
+  className = "", // 新增：允許外部傳入 class 來控制大小
+  contentPadding = false // 新增：是否為內容區域添加 padding
 }) => {
   return (
     <div
@@ -57,7 +58,7 @@ const BrowserFrame = ({
       )}
 
       {/* 3. 內容區域 (Content) - 設為 flex-1 自動填滿剩餘高度，並允許內部滾動 */}
-      <div className="flex-1 bg-white relative overflow-y-auto overflow-x-hidden">
+      <div className={`flex-1 bg-white relative overflow-y-auto overflow-x-hidden ${contentPadding ? 'p-6' : ''}`}>
         {children}
       </div>
     </div>

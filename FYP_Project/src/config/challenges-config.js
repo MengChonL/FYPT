@@ -263,17 +263,17 @@ export const phase1Challenges = {
     // --- 遊戲內文本內容 ---
     content: {
       chinese: {
-        title: "任務 4：向 Ben 轉帳",
+        title: "任務 4：向 Ryan 轉帳",
         scenario: "轉帳任務",
-        scenarioText: "您需要向朋友 Ryan 轉帳 0.25 ETH。Ryan 使用的是 Ethereum 主網。請在交易記錄中找到正確的收款地址，並完成轉帳。",
+        scenarioText: "您需要向朋友 Ryan 轉帳 0.25 ETH。Ryan 使用的是 Ethereum 主網。請在交易記錄中找到正確的收款地址，並完成轉帳。注意：歷史交易中可能存在地址投毒攻擊，請仔細核對完整地址。",
         networkLabel: "網絡",
         assetLabel: "幣種",
         timeRemaining: "剩餘時間"
       },
       english: {
-        title: "Mission 4: Transfer to Ben",
+        title: "Mission 4: Transfer to Ryan",
         scenario: "Transfer Task",
-        scenarioText: "You need to transfer 0.25 ETH to your friend Ryan. Ryan is using Ethereum Mainnet. Please find the correct recipient address in the transaction history and complete the transfer.",
+        scenarioText: "You need to transfer 0.25 ETH to your friend Ryan. Ryan is using Ethereum Mainnet. Please find the correct recipient address in the transaction history and complete the transfer. Warning: There may be address poisoning attacks in your transaction history — verify the full address carefully.",
         networkLabel: "Network",
         assetLabel: "Currency",
         timeRemaining: "Time Remaining"
@@ -352,22 +352,38 @@ export const phase1Challenges = {
       defaultNetwork: 'ethereum', // 默認網絡
       defaultAsset: 'eth', // 默認資產
       transactions: [
+        // 最新：收到來自 Ryan 正確地址的轉帳
         {
           type: 'received',
-          from: '0x8ba1f109551bD432803a645D4CEfc718b5c8B8C2',
-          fromName: 'Ben',
+          from: '0x1a2b3c4d5e6f781012345978901234567890abcb', // Ryan 正確地址
+          fromName: 'Ryan',
           to: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-          amount: '1.0',
+          amount: '0.5',
           currency: 'ETH',
           timeAgo: {
             chinese: '2 小時前',
             english: '2 hours ago'
           }
         },
+        // ⚠️ 地址投毒攻擊：攻擊者發來的極小額交易，地址幾乎與 Ryan 一樣（僅末尾不同）
+        {
+          type: 'received',
+          from: '0x1a2b3c4d5e6f781012345978901234567890abcf', // 投毒地址（末尾 abcf ≠ abcb）
+          fromName: '',  // 攻擊者沒有名字
+          to: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+          amount: '0.0001',
+          currency: 'ETH',
+          isPoisoned: true, // 標記為投毒交易
+          timeAgo: {
+            chinese: '1 小時前',
+            english: '1 hour ago'
+          }
+        },
+        // 較早：發送給 Ryan 的轉帳
         {
           type: 'sent',
-          to: '0x8ba1f109551bD432803a645D4CEfc718b5c8B8C2',
-          toName: 'Ben',
+          to: '0x1a2b3c4d5e6f781012345978901234567890abcb', // Ryan 正確地址
+          toName: 'Ryan',
           from: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
           amount: '0.2',
           currency: 'ETH',
@@ -376,16 +392,30 @@ export const phase1Challenges = {
             english: '1 day ago'
           }
         },
+        // Ben 的交易
         {
           type: 'received',
           from: '0x8ba1f109551bD432803a645D4CEfc718b5c8B8C2',
           fromName: 'Ben',
           to: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-          amount: '0.5',
+          amount: '1.0',
           currency: 'ETH',
           timeAgo: {
             chinese: '3 天前',
             english: '3 days ago'
+          }
+        },
+        // 較早：Ryan 的交易
+        {
+          type: 'received',
+          from: '0x1a2b3c4d5e6f781012345978901234567890abcb', // Ryan 正確地址
+          fromName: 'Ryan',
+          to: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
+          amount: '0.3',
+          currency: 'ETH',
+          timeAgo: {
+            chinese: '1 週前',
+            english: '1 week ago'
           }
         },
         {
@@ -394,18 +424,6 @@ export const phase1Challenges = {
           toName: 'Ben',
           from: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
           amount: '0.1',
-          currency: 'ETH',
-          timeAgo: {
-            chinese: '1 週前',
-            english: '1 week ago'
-          }
-        },
-        {
-          type: 'received',
-          from: '0x8ba1f109551bD432803a645D4CEfc718b5c8B8C2',
-          fromName: 'Ben',
-          to: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-          amount: '0.3',
           currency: 'ETH',
           timeAgo: {
             chinese: '2 週前',
@@ -470,7 +488,7 @@ export const phase1Challenges = {
     id: 'phase1-6',
     type: 'decentralizedPlatform', // 對應組件: Decentralizedplatform.jsx
     difficulty: 'medium',
-    nextLevel: null, // Phase 1 最後一關
+    nextLevel: 'phase2-1', // 進入 Phase 2 第一關
 
     // roadmap 顯示用 meta
     title: { chinese: '去中心化平台判別', english: 'DEX Check' },
@@ -514,10 +532,10 @@ export const phase1Challenges = {
   // Level 2-1: 拆解授權內容 (Deconstruct Malicious Authorization)
   // ============================================================
   'malicious-auth': {
-    id: 'malicious-auth',
+    id: 'phase2-1',  // 使用統一的新格式 ID
     type: 'maliciousAuth', // 對應組件: IdentifyMalicious.jsx
     difficulty: 'medium',
-    nextLevel: 'phase2-judge-auth',
+    nextLevel: 'phase2-2',
 
     // roadmap 顯示用 meta
     title: { chinese: '判別惡意授權', english: 'Identify Malicious Authorization' },
@@ -561,10 +579,10 @@ export const phase1Challenges = {
   // Level 2-2: 判斷授權內容 (Judge Authorization Content)
   // ============================================================
   'judge-auth': {
-    id: 'judge-auth',
-    type: 'judgeAuth', // 對應組件: 待創建或使用現有組件
+    id: 'phase2-2',  // 使用統一的新格式 ID
+    type: 'judgeAuth', // 對應組件: JudgeAuth.jsx
     difficulty: 'medium',
-    nextLevel: 'phase2-danger-auth',
+    nextLevel: 'phase2-3',
 
     // roadmap 顯示用 meta
     title: { chinese: '判斷授權內容', english: 'Judge Authorization Content' },
@@ -608,7 +626,7 @@ export const phase1Challenges = {
   // Level 2-3: Web3 混合詐騙實戰 (QuantumFi Web Demo)
   // ============================================================
   'phase2-danger-auth': {
-    id: 'phase2-danger-auth',
+    id: 'phase2-3',  // 使用統一的新格式 ID
     type: 'dangerAuthWeb3', // 對應組件: Web3DangerAuth.jsx
     difficulty: 'medium',
     nextLevel: null,
@@ -662,6 +680,18 @@ export const phase1Challenges = {
 const allChallenges = {
   ...phase1Challenges
 };
+
+// Phase 2 別名映射 - 資料庫使用 phase2-1, phase2-2, phase2-3
+// 映射到原有的 malicious-auth, judge-auth, phase2-danger-auth
+if (allChallenges['malicious-auth']) {
+  allChallenges['phase2-1'] = { ...allChallenges['malicious-auth'], id: 'phase2-1', nextLevel: 'phase2-2' };
+}
+if (allChallenges['judge-auth']) {
+  allChallenges['phase2-2'] = { ...allChallenges['judge-auth'], id: 'phase2-2', nextLevel: 'phase2-3' };
+}
+if (allChallenges['phase2-danger-auth']) {
+  allChallenges['phase2-3'] = { ...allChallenges['phase2-danger-auth'], id: 'phase2-3', nextLevel: null };
+}
 
 /**
  * 根據挑戰 ID 獲取配置

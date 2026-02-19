@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useGame } from '../../context/GameContext';
+import { useAttemptTracking } from '../../hooks/useAttemptTracking';
 import ChallengeTemplate from './ChallengeTemplate';
 import BrowserFrame from './BrowserFrame';
 import ChallengeResultScreen from './ChallengeResultScreen';
@@ -17,10 +19,12 @@ import MemoEn from '../../assets/memoen.png';
  * 钱包转账挑战组件 - 模仿 MetaMask 转账界面
  * 用于地址投毒挑战中的钱包转账模式
  */
-const WalletTransferChallenge = ({ config }) => {
+const WalletTransferChallenge = ({ config, language: propLanguage }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [view, setView] = useState('map'); // 'map' | 'intro' | 'wallet' | 'transfer'
+  const { getPhaseByScenarioCode, completeScenarioAndUnlockNext } = useGame();
+  const { startTracking, recordStageError } = useAttemptTracking(config?.id);
+  const [view, setView] = useState('intro'); // 'intro' | 'wallet' | 'transfer'
   const [activeTab, setActiveTab] = useState('metamask'); // 'metamask'
   const [metamaskView, setMetamaskView] = useState('wallet'); // 'wallet' | 'send' | 'transfer'
   const [addressInput, setAddressInput] = useState('');
@@ -31,7 +35,7 @@ const WalletTransferChallenge = ({ config }) => {
   const [showReceipt, setShowReceipt] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [language, setLanguage] = useState('chinese');
+  const [language, setLanguage] = useState(propLanguage || 'chinese');
   const [showNetworkDropdown, setShowNetworkDropdown] = useState(false);
   const [showAssetDropdown, setShowAssetDropdown] = useState(false);
   const [showFullRecipientAddress, setShowFullRecipientAddress] = useState(false);
@@ -47,13 +51,16 @@ const WalletTransferChallenge = ({ config }) => {
   const [confirmAddress, setConfirmAddress] = useState('');
   const [showItemReminder, setShowItemReminder] = useState(false); // 显示道具提醒
   const [openBackpack, setOpenBackpack] = useState(false); // 控制打开背包
+  const [autoOpenItemIndex, setAutoOpenItemIndex] = useState(null); // 自動打開的道具索引
+  const [hasAnyStageError, setHasAnyStageError] = useState(false); // Track if any error occurred
   
   const networkDropdownRef = useRef(null);
   const assetDropdownRef = useRef(null);
 
   // 初始化：路由变化时重置状态
   useEffect(() => {
-    setView('map');
+    // 直接顯示 intro 頁面（PhaseRoadmap 選擇已移至 GamePage）
+    setView('intro');
     setActiveTab('metamask');
     setMetamaskView('wallet');
     setShowResult(false);
@@ -71,19 +78,35 @@ const WalletTransferChallenge = ({ config }) => {
     setConfirmAddress('');
     setShowItemReminder(false);
     setOpenBackpack(false);
+    setAutoOpenItemIndex(null);
+    setHasAnyStageError(false);
   }, [location.pathname, config]);
 
   // 处理下一关导航
-  const handleNextLevel = () => {
+  const handleNextLevel = async () => {
+    // 記錄答題結果：如果有錯誤，is_success 為 false，但仍然更新進度
+    if (config?.id) {
+      const finalSuccess = isCorrect && !hasAnyStageError;
+      // 即使失敗也要更新進度到下一關
+      const errorDetails = finalSuccess ? null : { force_progress_update: true };
+      await completeScenarioAndUnlockNext(config.id, config.nextLevel, finalSuccess, errorDetails);
+    }
+    
     if (config?.nextLevel) {
-      const phase = config.nextLevel.split('-')[0];
-      navigate(`/challenge/${phase}/${config.nextLevel}`);
+      const phase = getPhaseByScenarioCode(config.nextLevel);
+      if (phase) {
+        navigate(`/challenge/${phase}/${config.nextLevel}`, { state: { skipToIntro: true } });
+      } else {
+        console.error('Cannot find phase for scenario:', config.nextLevel);
+      }
     }
   };
 
   // 处理 roadmap 点击
   const handleStartLevel = (stepId) => {
-    if (stepId === 'transfer') setView('intro');
+    if (stepId === 'transfer') {
+      setView('intro');
+    }
   };
 
   // Roadmap 步骤配置
@@ -631,11 +654,14 @@ const WalletTransferChallenge = ({ config }) => {
                 <button
                   type="button"
                   onClick={() => setShowFullReceiptAddress((prev) => !prev)}
-                  className="w-8 h-8 flex items-center justify-center rounded-full"
+                  className="w-8 h-8 flex items-center justify-center rounded-full flex-shrink-0"
                   style={{
                     border: '2px solid #0066ff',
                     color: '#0066ff',
-                    backgroundColor: showFullReceiptAddress ? '#e6f2ff' : '#f0f7ff'
+                    backgroundColor: showFullReceiptAddress ? '#e6f2ff' : '#f0f7ff',
+                    cursor: 'pointer',
+                    minWidth: '32px',
+                    minHeight: '32px'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = '#cce5ff';
@@ -646,14 +672,14 @@ const WalletTransferChallenge = ({ config }) => {
                   title={showFullReceiptAddress ? (language === 'chinese' ? '隱藏地址' : 'Hide address') : (language === 'chinese' ? '顯示完整地址' : 'Show full address')}
                 >
                   {showFullReceiptAddress ? (
-                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#0066ff" strokeWidth="3" style={{ display: 'block' }}>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#0066ff" strokeWidth="2" style={{ display: 'block' }}>
                       <path d="M3 3l14 14" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M10 5.5c-3.756 0-6.774 2.162-8.066 5.5a10.523 10.523 0 001.47 2.615" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M6.228 6.228A10.45 10.45 0 0110 5.5c3.756 0 6.774 2.162 8.066 5.5a10.523 10.523 0 01-1.238 2.28" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M12.73 12.73A3 3 0 017.27 7.27" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   ) : (
-                    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#0066ff" strokeWidth="3" style={{ display: 'block' }}>
+                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="#0066ff" strokeWidth="2" style={{ display: 'block' }}>
                       <path d="M10 5.5c-3.756 0-6.774 2.162-8.066 5.5C3.226 14.338 6.244 16.5 10 16.5c3.756 0 6.774-2.162 8.066-5.5C16.774 7.662 13.756 5.5 10 5.5z" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M10 13a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
@@ -718,23 +744,63 @@ const WalletTransferChallenge = ({ config }) => {
             </button>
             <button
               type="button"
-              onClick={() => {
-                const targetAddr = '0x1a2b3c4d5e6f781012345978901234567890abcb';
+              onClick={async () => {
+                const targetAddr = config.addresses.correct.toLowerCase();
+                const targetAmount = parseFloat(config.transfer.amount);
                 const addrOk = confirmAddress.trim().toLowerCase() === targetAddr;
                 const amtNum = parseFloat(amountInput);
-                const amountOk = !Number.isNaN(amtNum) && Math.abs(amtNum - 0.25) < 1e-6;
+                const amountOk = !Number.isNaN(amtNum) && Math.abs(amtNum - targetAmount) < 1e-6;
                 const success = addrOk && amountOk;
+                
+                // 檢查是否使用了投毒地址
+                const usedPoisonedAddress = config.addresses.poisoned 
+                  && confirmAddress.trim().toLowerCase() === config.addresses.poisoned.toLowerCase();
+                
                 setIsCorrect(success);
                 setErrorMessage(
                   success
                     ? ''
-                    : (language === 'chinese'
-                      ? '鏈上交易公開可查，請仔細核對地址與金額，提防相似地址誘導。'
-                      : 'On-chain transactions are public. Double-check address and amount; beware lookalike-address scams.')
+                    : usedPoisonedAddress
+                      ? (language === 'chinese'
+                        ? '⚠️ 你選擇了投毒地址！攻擊者通過發送極小額交易，讓相似地址出現在你的交易記錄中，誘導你複製錯誤地址。請仔細核對完整地址的每一個字元。'
+                        : '⚠️ You selected a poisoned address! Attackers send tiny transactions so that a similar-looking address appears in your history, tricking you into copying the wrong one. Always verify every character of the full address.')
+                      : (language === 'chinese'
+                        ? '鏈上交易公開可查，請仔細核對地址與金額，提防相似地址誘導。'
+                        : 'On-chain transactions are public. Double-check address and amount; beware lookalike-address scams.')
                 );
                 setShowConfirmScreen(false);
                 setShowReceipt(false);
                 setShowResult(true);
+                
+                // 記錄錯誤
+                if (!success && config?.id) {
+                  const errors = [];
+                  if (usedPoisonedAddress) errors.push(language === 'chinese' ? '使用了投毒地址' : 'Used poisoned address');
+                  else if (!addrOk) errors.push(language === 'chinese' ? '地址輸入錯誤' : 'Wrong address');
+                  if (!amountOk) errors.push(language === 'chinese' ? '金額輸入錯誤' : 'Wrong amount');
+                  setHasAnyStageError(true);
+                  await recordStageError({
+                    error_type: usedPoisonedAddress ? 'address_poisoning_trap' : 'wrong_transfer_details',
+                    errors: errors,
+                    user_input: {
+                      address: confirmAddress.trim(),
+                      amount: amountInput
+                    },
+                    correct_answer: {
+                      address: config.addresses.correct,
+                      amount: config.transfer.amount
+                    },
+                    poisoned_address: config.addresses.poisoned || null,
+                    used_poisoned_address: usedPoisonedAddress,
+                    description: usedPoisonedAddress
+                      ? (language === 'chinese' 
+                        ? `地址投毒攻擊：用戶複製了投毒地址 ${confirmAddress.trim()}` 
+                        : `Address poisoning attack: User copied poisoned address ${confirmAddress.trim()}`)
+                      : (language === 'chinese' 
+                        ? `轉帳錯誤: ${errors.join(', ')}` 
+                        : `Transfer error: ${errors.join(', ')}`)
+                  });
+                }
               }}
               className="flex-1 py-3 rounded-xl text-base font-bold text-white hover:brightness-110"
               style={{ backgroundColor: '#000000' }}
@@ -760,17 +826,17 @@ const WalletTransferChallenge = ({ config }) => {
       const gasFee = 0.0005;
       const totalValue = fixedRecordAmount + gasFee;
       const displayAddress = addressInput || config?.recipient?.address || '';
-      const senderName = 'Ryan';
-      const senderInitial = senderName?.[0]?.toUpperCase() || 'R';
-      const symbol = asset?.symbol?.toUpperCase() || 'ETH';
-      const fromAddr = '0x1a2b3c4d5e6f789012345678901234567890abcd';
-      const toAddr = '0x742d35Cc6634C0532925a3b8D4C9Fb2f2e2f0891';
-
+      
       const maskAddr = (addr) => {
         if (!addr) return '';
         if (showFullReceiptAddress) return addr;
         return `${addr.slice(0, 4)}...${addr.slice(-4)}`;
       };
+      
+      // 对于接收交易：From 是发送方，To 是接收方（当前账户）
+      const toAddr = '0x1a2b3c4d5e6f781012345978901234567890abcf'; // From（发送方地址）
+      const fromAddr = '0x742d35Cc6634C0532925a3b8D4C9Fb2f2e2f0891'; // To（接收方地址，当前账户）
+      const symbol = asset?.symbol?.toUpperCase() || 'ETH';
 
       const handleCopyReceipt = async (addr) => {
         try {
@@ -784,29 +850,37 @@ const WalletTransferChallenge = ({ config }) => {
 
       const extraRecords = [
         {
-          fromName: language === 'chinese' ? 'Ryan' : 'Ryan',
-          fromAddr: '0x742d35Cc6634C0532925a3b8D4C9Fb2f2e2f0891',
-          toName: 'Ryan',
-          toAddr: '0x1a2b3c4d5e6f781012345978901234567890abcb',
+          direction: 'receive',
+          fromAddr: '0x1a2b3c4d5e6f781012345978901234567890abcb',
+          toAddr: '0x742d35Cc6634C0532925a3b8D4C9Fb2f2e2f0891',
           amount: '0.3000',
           gas: '0.0006',
           total: '0.3006',
           timestamp
         },
         {
-          fromName: 'Susan',
-          fromAddr: '0x8fE13D8D3b2158431d3eE3F1C872e7a1a1b8c9D2',
-          toName: 'Ryan',
+          direction: 'receive',
+          fromAddr: '0x1a2b3c4d5e6f781012345978901234567890abcb',
           toAddr: '0x742d35Cc6634C0532925a3b8D4C9Fb2f2e2f0891',
           amount: '0.1200',
           gas: '0.0005',
           total: '0.1205',
           timestamp
+        },
+        {
+          direction: 'send',
+          fromAddr: '0x742d35Cc6634C0532925a3b8D4C9Fb2f2e2f0891',
+          toAddr: '0x8fE13D8D3b2158431d3eE3F1C872e7a1a1b8c9D2',
+          amount: '0.0001',
+          gas: '0.0005',
+          total: '0.0006',
+          timestamp,
+          isPoisoned: true  // 投毒交易：地址與正確地址幾乎一致
         }
       ];
 
-      const targetAddr = '0x1a2b3c4d5e6f781012345978901234567890abcb';
-      const targetAmount = 0.25;
+      const targetAddr = config.addresses.correct.toLowerCase();
+      const targetAmount = parseFloat(config.transfer.amount);
 
       return (
         <div
@@ -900,12 +974,16 @@ const WalletTransferChallenge = ({ config }) => {
 
               <div className="flex items-center justify-between px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center">
-                    {senderInitial}
+                  {/* 修改部分：將改為綠色 SVG 接收圖標 */}
+                  <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="17" y1="7" x2="7" y2="17"></line>
+                      <polyline points="17 17 7 17 7 7"></polyline>
+                    </svg>
                   </div>
+                  
                   <div className="flex flex-col leading-tight">
-                    <span className="text-sm text-gray-500">{language === 'chinese' ? '來自' : 'From'}</span>
-                    <span className="text-sm font-semibold text-gray-800">{senderName}</span>
+                    <span className="text-sm text-gray-500">{language === 'chinese' ? '接收' : 'Receive'}</span>
                   </div>
                 </div>
                 <div className="text-xs text-gray-500">{timestamp}</div>
@@ -913,17 +991,17 @@ const WalletTransferChallenge = ({ config }) => {
 
               <div className="border-t border-[#f1f2f5]" />
 
-              {/* 地址區塊 */}
+            {/* 地址區塊 */}
               <div className="px-4 py-3 space-y-2 text-sm text-gray-800">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                   <span className="text-gray-500">{language === 'chinese' ? 'From' : 'From'}</span>
-                  <span className="font-mono font-semibold">{maskAddr(fromAddr)}</span>
+                  <span className="font-mono font-semibold">{maskAddr(toAddr)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                    onClick={() => handleCopyReceipt(fromAddr)}
+                    onClick={() => handleCopyReceipt(toAddr)}
                     title={language === 'chinese' ? '複製完整地址' : 'Copy full address'}
                     className="p-2 rounded-full border border-blue-300 text-blue-600 hover:bg-blue-50 flex items-center justify-center"
                     >
@@ -977,12 +1055,12 @@ const WalletTransferChallenge = ({ config }) => {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-500">{language === 'chinese' ? 'To' : 'To'}</span>
-                    <span className="font-mono font-semibold">{maskAddr(toAddr)}</span>
+                  <span className="font-mono font-semibold">{maskAddr(fromAddr)}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => handleCopyReceipt(toAddr)}
+                      onClick={() => handleCopyReceipt(fromAddr)}
                       title={language === 'chinese' ? '複製完整地址' : 'Copy full address'}
                       className="p-2 rounded-full border border-blue-300 text-blue-600 hover:bg-blue-50 flex items-center justify-center"
                     >
@@ -1060,24 +1138,47 @@ const WalletTransferChallenge = ({ config }) => {
               <React.Fragment key={idx}>
                 <div className="border border-[#e5e7eb] rounded-2xl shadow-sm bg-white p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center">
-                        {rec.fromName?.[0]?.toUpperCase() || 'U'}
+                    <div className="flex items-center gap-2">
+                      
+                      {/* === 修改部分：動態紅綠箭頭 SVG === */}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        rec.direction === 'receive' 
+                          ? 'bg-green-100 text-green-600' 
+                          : 'bg-red-100 text-red-600'
+                      }`}>
+                        {rec.direction === 'receive' ? (
+                          // 接收圖標 (箭頭向左下)
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="17" y1="7" x2="7" y2="17"></line>
+                            <polyline points="17 17 7 17 7 7"></polyline>
+                          </svg>
+                        ) : (
+                          // 發送圖標 (箭頭向右上)
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="7" y1="17" x2="17" y2="7"></line>
+                            <polyline points="7 7 17 7 17 17"></polyline>
+                          </svg>
+                        )}
                       </div>
-                    <div className="flex flex-col leading-tight">
-                      <span className="text-xs text-gray-500">{language === 'chinese' ? '來自' : 'From'}</span>
-                      <span className="text-sm font-semibold text-gray-800">{rec.fromName}</span>
+                      {/* === 修改結束 === */}
+
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-xs text-gray-500">
+                          {rec.direction === 'receive'
+                            ? (language === 'chinese' ? '接收' : 'Receive')
+                            : (language === 'chinese' ? '發送' : 'Send')}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-base font-bold text-gray-900">{rec.amount} {symbol}</div>
+                      <div className="text-xs text-green-500 flex items-center justify-end gap-1">
+                        <span>{language === 'chinese' ? '已確認' : 'Confirmed'}</span>
+                        <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                      </div>
+                      <div className="text-[11px] text-gray-400">{rec.timestamp}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-base font-bold text-gray-900">{rec.amount} {symbol}</div>
-                    <div className="text-xs text-green-500 flex items-center justify-end gap-1">
-                      <span>{language === 'chinese' ? '已確認' : 'Confirmed'}</span>
-                      <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
-                    </div>
-                    <div className="text-[11px] text-gray-400">{rec.timestamp}</div>
-                  </div>
-                </div>
 
                   <div className="text-sm text-gray-800 space-y-3">
                     <div className="flex items-center justify-between">
@@ -1226,21 +1327,60 @@ const WalletTransferChallenge = ({ config }) => {
             <button
               type="button"
               className="w-full py-4 rounded-xl text-base font-bold bg-black text-white hover:bg-[#111]"
-              onClick={() => {
+              onClick={async () => {
                 const addrOk = (addressInput || '').trim().toLowerCase() === targetAddr;
                 const amtNum = parseFloat(amountInput);
                 const amountOk = !Number.isNaN(amtNum) && Math.abs(amtNum - targetAmount) < 1e-6;
                 const success = addrOk && amountOk;
+                
+                // 檢查是否使用了投毒地址
+                const usedPoisonedAddress = config.addresses.poisoned 
+                  && (addressInput || '').trim().toLowerCase() === config.addresses.poisoned.toLowerCase();
+                
                 setIsCorrect(success);
                 setErrorMessage(
                   success
                     ? ''
-                    : (language === 'chinese'
-                      ? '鏈上交易公開可查，請仔細核對地址與金額，提防相似地址誘導。'
-                      : 'On-chain transactions are public. Double-check address and amount; beware lookalike-address scams.')
+                    : usedPoisonedAddress
+                      ? (language === 'chinese'
+                        ? '⚠️ 你選擇了投毒地址！攻擊者通過發送極小額交易，讓相似地址出現在你的交易記錄中，誘導你複製錯誤地址。請仔細核對完整地址的每一個字元。'
+                        : '⚠️ You selected a poisoned address! Attackers send tiny transactions so that a similar-looking address appears in your history, tricking you into copying the wrong one. Always verify every character of the full address.')
+                      : (language === 'chinese'
+                        ? '鏈上交易公開可查，請仔細核對地址與金額，提防相似地址誘導。'
+                        : 'On-chain transactions are public. Double-check address and amount; beware lookalike-address scams.')
                 );
                 setShowReceipt(false);
                 setShowResult(true);
+                
+                // 記錄錯誤到 error details
+                if (!success && config?.id) {
+                  const errors = [];
+                  if (usedPoisonedAddress) errors.push(language === 'chinese' ? '使用了投毒地址' : 'Used poisoned address');
+                  else if (!addrOk) errors.push(language === 'chinese' ? '地址輸入錯誤' : 'Wrong address');
+                  if (!amountOk) errors.push(language === 'chinese' ? '金額輸入錯誤' : 'Wrong amount');
+                  setHasAnyStageError(true);
+                  await recordStageError({
+                    error_type: usedPoisonedAddress ? 'address_poisoning_trap' : 'wrong_transfer_details',
+                    errors: errors,
+                    user_input: {
+                      address: (addressInput || '').trim(),
+                      amount: amountInput
+                    },
+                    correct_answer: {
+                      address: config.addresses.correct,
+                      amount: config.transfer.amount
+                    },
+                    poisoned_address: config.addresses.poisoned || null,
+                    used_poisoned_address: usedPoisonedAddress,
+                    description: usedPoisonedAddress
+                      ? (language === 'chinese' 
+                        ? `地址投毒攻擊：用戶複製了投毒地址 ${(addressInput || '').trim()}` 
+                        : `Address poisoning attack: User copied poisoned address ${(addressInput || '').trim()}`)
+                      : (language === 'chinese' 
+                        ? `轉帳錯誤: ${errors.join(', ')}` 
+                        : `Transfer error: ${errors.join(', ')}`)
+                  });
+                }
               }}
             >
               {language === 'chinese' ? '完成' : 'Finish'}
@@ -1405,8 +1545,14 @@ const WalletTransferChallenge = ({ config }) => {
             <button
               onClick={() => {
                 setShowItemReminder(false);
+                // 自動打開「Web3 轉賬指南」（items[1]）
+                setAutoOpenItemIndex(1);
                 setOpenBackpack(true);
-                setTimeout(() => setOpenBackpack(false), 100);
+                // 重置狀態，確保下次能再次觸發
+                setTimeout(() => {
+                  setOpenBackpack(false);
+                  setAutoOpenItemIndex(null);
+                }, 100);
               }}
               className="flex-1 py-4 bg-purple-200 hover:bg-purple-300 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] transform hover:scale-[1.02]"
             >
@@ -1460,7 +1606,10 @@ const WalletTransferChallenge = ({ config }) => {
           </div>
         </div>
         <button 
-          onClick={() => setShowItemReminder(true)}
+          onClick={async () => {
+            await startTracking(); // 開始計時
+            setShowItemReminder(true);
+          }}
           className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] transform hover:scale-[1.02]"
         >
           {introData?.btn || (language === 'chinese' ? '開始轉帳' : 'Start Transfer')}
@@ -1469,14 +1618,16 @@ const WalletTransferChallenge = ({ config }) => {
     </div>
   );
 
-  const handleTransfer = () => {
+  const handleTransfer = async () => {
     // 验证网络、资产、地址和金额
     const inputAddress = addressInput.trim().toLowerCase();
     const correctAddress = config.addresses.correct.toLowerCase();
+    const poisonedAddress = config.addresses.poisoned ? config.addresses.poisoned.toLowerCase() : null;
     const inputAmount = amountInput.trim();
     const correctAmount = config.transfer.amount;
     
     let errors = [];
+    let usedPoisonedAddress = false;
     
     // 检查网络
     if (config.transfer.requireNetworkSelection) {
@@ -1494,10 +1645,15 @@ const WalletTransferChallenge = ({ config }) => {
       }
     }
     
-    // 检查地址
+    // 检查地址 - 特別檢測是否使用了投毒地址
     const addressCorrect = inputAddress === correctAddress;
     if (!addressCorrect) {
-      errors.push(language === 'chinese' ? '地址輸入錯誤' : 'Wrong address');
+      if (poisonedAddress && inputAddress === poisonedAddress) {
+        usedPoisonedAddress = true;
+        errors.push(language === 'chinese' ? '使用了投毒地址' : 'Used poisoned address');
+      } else {
+        errors.push(language === 'chinese' ? '地址輸入錯誤' : 'Wrong address');
+      }
     }
     
     // 检查金额
@@ -1509,8 +1665,46 @@ const WalletTransferChallenge = ({ config }) => {
     const allCorrect = errors.length === 0;
     
     setIsCorrect(allCorrect);
-    setErrorMessage(errors.join(', '));
+    setErrorMessage(
+      allCorrect 
+        ? '' 
+        : usedPoisonedAddress
+          ? (language === 'chinese'
+            ? '⚠️ 你選擇了投毒地址！攻擊者通過發送極小額交易，讓相似地址出現在你的交易記錄中，誘導你複製錯誤地址。'
+            : '⚠️ You selected a poisoned address! Attackers send tiny transactions so similar-looking addresses appear in your history.')
+          : errors.join(', ')
+    );
     setShowResult(true);
+    
+    // 記錄答題結果（不結束 attempt）
+    if (!allCorrect && config?.id) {
+      setHasAnyStageError(true);
+      await recordStageError({
+        error_type: usedPoisonedAddress ? 'address_poisoning_trap' : 'wrong_transfer_details',
+        errors: errors,
+        user_input: {
+          network: selectedNetwork,
+          asset: selectedAsset,
+          address: inputAddress,
+          amount: inputAmount
+        },
+        correct_answer: {
+          network: config.transfer.correctNetwork,
+          asset: config.transfer.correctAsset,
+          address: correctAddress,
+          amount: correctAmount
+        },
+        poisoned_address: config.addresses.poisoned || null,
+        used_poisoned_address: usedPoisonedAddress,
+        description: usedPoisonedAddress
+          ? (language === 'chinese'
+            ? `地址投毒攻擊：用戶複製了投毒地址 ${inputAddress}`
+            : `Address poisoning attack: User copied poisoned address ${inputAddress}`)
+          : (language === 'chinese' 
+            ? `轉帳錯誤: ${errors.join(', ')}` 
+            : `Transfer error: ${errors.join(', ')}`)
+      });
+    }
     
     setTimeout(() => {
       console.log('轉帳驗證:', {
@@ -1643,6 +1837,7 @@ const WalletTransferChallenge = ({ config }) => {
       containerMaxWidth={view === 'map' || view === 'intro' ? "100vw" : "95vw"}
       containerMaxHeight={view === 'map' || view === 'intro' ? "100vh" : "90vh"}
       openBackpack={openBackpack}
+      autoOpenItemIndex={autoOpenItemIndex}
     >
       {/* 道具提醒消息框 */}
       {renderItemReminder()}

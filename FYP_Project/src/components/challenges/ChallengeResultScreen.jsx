@@ -82,15 +82,27 @@ const ChallengeResultScreen = ({
       initial={{ scale: 0.8, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       className="text-center"
+      style={{
+        height: '100vh',
+        width: '100vw',
+        overflow: 'hidden',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        zIndex: 50,
+        backgroundColor: '#111827', // 統一背景色 (gray-900)
+      }}
     >
       <div 
-        className="relative w-full h-full bg-gray-900 overflow-y-auto pixel-font text-white" 
+        className="relative w-full h-full pixel-font text-white" 
         style={{ 
-          minHeight: '100vh',
-          height: '100vh',
           width: '100vw',
+          height: '100vh',
+          backgroundColor: '#111827', // 統一背景色 (gray-900)
           boxShadow: 'inset 0 0 30px rgba(0,0,0,0.3)',
-          ...customStyles.container
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          ...customStyles.container,
         }}
       >
         {/* 装饰性圆圈和线条 */}
@@ -177,17 +189,17 @@ const ChallengeResultScreen = ({
         </svg>
 
         {/* 内容区域 */}
-        <div className="relative" style={{ zIndex: 2, paddingTop: '30px' }}>
+        <div className="relative" style={{ zIndex: 2, paddingTop: '80px' }}>
           {/* 关卡信息顶部 */}
           {title && (
-            <div className="bg-gradient-to-r from-gray-800 via-gray-900 to-gray-800 text-white py-6 px-8 border-b-2 border-gray-700">
+            <div className="text-white py-8 px-12" style={{ backgroundColor: '#111827', borderBottom: '2px solid #374151' }}>
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className={`text-2xl font-bold ${isSuccess ? 'text-green-400' : 'text-blue-400'}`}>
                     {title}
                   </h3>
                   {description && (
-                    <p className="text-xl text-gray-300 mt-2">{description}</p>
+                    <p className="text-xl text-gray-300 mt-3">{description}</p>
                   )}
                 </div>
               </div>
@@ -196,7 +208,7 @@ const ChallengeResultScreen = ({
 
           {/* Success/Failure Banner */}
           <div 
-            className={`text-white py-10 px-8 flex items-center justify-center gap-6 border-b-4`}
+            className={`text-white py-12 px-12 flex items-center justify-center gap-6 border-b-4`}
             style={{
               backgroundColor: isSuccess ? '#16a34a' : '#dc2626',
               borderBottomColor: isSuccess ? '#15803d' : '#991b1b'
@@ -227,7 +239,7 @@ const ChallengeResultScreen = ({
               width: '100%', 
               maxWidth: '1400px', 
               margin: '0 auto',
-              padding: '3rem 2rem',
+              padding: '3rem 3rem',
               paddingBottom: isSuccess ? '1rem' : '3rem'
             }}
           >
@@ -404,6 +416,9 @@ const ChallengeResultScreen = ({
               </button>
             </div>
           )}
+          
+          {/* 底部額外空間確保滾動時按鈕可見 */}
+          <div style={{ height: '100px', minHeight: '100px' }}></div>
         </div>
       </div>
     </motion.div>

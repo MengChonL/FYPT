@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useGame } from '../context/GameContext';
+import { getUserFinalReport } from '../api';
 import FixedBackground from '../components/FixedBackground';
 import Folder from '../components/Folder';
 import PhaseRoadmap2 from '../components/PhaseRoadmap2';
+import PhaseRoadmap from '../components/PhaseRoadmap';
+import UserStatistics from '../components/UserStatistics';
 // 導入圖片
 import challenge1Img from '../assets/Challenge1.png';
 import challenge2Img from '../assets/Challenge2.png';
@@ -64,12 +68,64 @@ import dexGuide3En from '../assets/DEXEN3.png';
 
 const GamePage = () => {
   const navigate = useNavigate();
-  const [language, setLanguage] = useState('chinese');
+  const { phases, scenarios, loading, error, getScenariosByPhase, language, setLanguage, canStartPhase, canStartScenario, getCurrentScenario, getCurrentScenarioPath, getPhaseCurrentPath, logout, userId, currentScenarioCode } = useGame();
   const [showBackpack, setShowBackpack] = useState(false);
   const [selectedItem, setSelectedItem] = useState(0);
   const [showItemViewer, setShowItemViewer] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showAuthorizationChallenges, setShowAuthorizationChallenges] = useState(false);
+  const [showPhase1Challenges, setShowPhase1Challenges] = useState(false);
+  const [showStatistics, setShowStatistics] = useState(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  const isCompleted = currentScenarioCode === 'completed';
+
+  // 獲取當前關卡信息
+  const currentScenario = getCurrentScenario?.();
+  const currentScenarioPath = getCurrentScenarioPath?.();
+
+  // 登出處理
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
+
+  // 如果正在載入，顯示載入畫面
+  if (loading) {
+    return (
+      <div style={{ 
+        width: '100vw', 
+        height: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        background: '#1a1a2e',
+        color: '#00d9ff'
+      }}>
+        <h2>載入遊戲資料...</h2>
+      </div>
+    );
+  }
+
+  // 如果有錯誤，顯示錯誤訊息
+  if (error) {
+    return (
+      <div style={{ 
+        width: '100vw', 
+        height: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        flexDirection: 'column',
+        background: '#1a1a2e',
+        color: '#f87171'
+      }}>
+        <h2>載入失敗</h2>
+        <p>{error}</p>
+        <button onClick={() => window.location.reload()}>重新載入</button>
+      </div>
+    );
+  }
 
   // 道具數據
   const items = [
@@ -208,10 +264,10 @@ const GamePage = () => {
     const item = items[selectedItem];
     if (item?.images) {
       const images = item.images[language] || item.images.chinese;
-      // 第 3 個道具有 5 頁（4 張圖片 + 1 頁表格）
+      // 第 3 個道具有 6 頁（4 張圖片 + 1 頁表格 + 1 頁平台網址）
       // 第 5 個道具有 10 頁（9 張圖片 + 1 頁文字說明）
       let maxPages = images.length;
-      if (selectedItem === 2) maxPages = 5;
+      if (selectedItem === 2) maxPages = 6;
       if (selectedItem === 4) maxPages = 10;
       setCurrentImageIndex((prev) => (prev + 1) % maxPages);
     }
@@ -222,7 +278,7 @@ const GamePage = () => {
     if (item?.images) {
       const images = item.images[language] || item.images.chinese;
       let maxPages = images.length;
-      if (selectedItem === 2) maxPages = 5;
+      if (selectedItem === 2) maxPages = 6;
       if (selectedItem === 4) maxPages = 10;
       setCurrentImageIndex((prev) => (prev - 1 + maxPages) % maxPages);
     }
@@ -247,8 +303,8 @@ const GamePage = () => {
       {/* 動態粒子背景 */}
       <FixedBackground />
 
-      {/* 頂部導航：語言切換與背包 - 當顯示授權挑戰選擇界面時隱藏 */}
-      {!showAuthorizationChallenges && (
+      {/* 頂部導航：語言切換與背包 - 當顯示挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && !showPhase1Challenges && (
         <div className="absolute top-0 left-0 w-full flex justify-between items-center p-10 z-[60]">
         <div className="flex gap-8 text-base tracking-widest">
           <span 
@@ -274,20 +330,83 @@ const GamePage = () => {
             ENGLISH
           </span>
         </div>
-        <div 
-          onClick={() => setShowBackpack(true)} 
-          className="flex items-center gap-2 group"
-          style={blueTextStyle}
-        >
-          <Folder size={1.2} color="#22d3ee" />
-          <span className="group-hover:opacity-80 uppercase">{t.backpack}</span>
+        <div className="flex items-center gap-6">
+          <div 
+            onClick={() => setShowBackpack(true)} 
+            className="flex items-center gap-2 group"
+            style={blueTextStyle}
+          >
+            <Folder size={1.2} color="#22d3ee" />
+            <span className="group-hover:opacity-80 uppercase">{t.backpack}</span>
+          </div>
+          {/* 統計 / 用戶報告按鈕 */}
+          {isCompleted ? (
+            <div 
+              onClick={async () => {
+                if (isGeneratingReport) return;
+                setIsGeneratingReport(true);
+                try {
+                  const report = await getUserFinalReport(userId);
+                  if (report) {
+                    navigate('/report', { state: { report } });
+                  } else {
+                    alert(language === 'chinese' ? '找不到報告，請先完成所有關卡' : 'Report not found. Please complete all challenges first.');
+                  }
+                } catch (err) {
+                  console.error('❌ Failed to fetch report:', err);
+                } finally {
+                  setIsGeneratingReport(false);
+                }
+              }}
+              className="flex items-center gap-2 group"
+              style={{ ...blueTextStyle, opacity: isGeneratingReport ? 0.5 : 1 }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="19.2" height="19.2" fill="none" viewBox="0 0 24 24" stroke="#22d3ee" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span className="group-hover:opacity-80 uppercase">
+                {isGeneratingReport
+                  ? (language === 'chinese' ? '載入中...' : 'Loading...')
+                  : (language === 'chinese' ? '用戶報告' : 'User Report')}
+              </span>
+            </div>
+          ) : (
+            <div 
+              onClick={() => setShowStatistics(true)}
+              className="flex items-center gap-2 group"
+              style={blueTextStyle}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="19.2" height="19.2" fill="none" viewBox="0 0 24 24" stroke="#22d3ee" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span className="group-hover:opacity-80 uppercase">{language === 'chinese' ? '統計' : 'Stats'}</span>
+            </div>
+          )}
+          {/* 登出按鈕 */}
+          <div 
+            onClick={handleLogout}
+            className="flex items-center gap-2 group"
+            style={{
+              ...pixelFontStyle,
+              color: '#ef4444',
+              textShadow: '0 0 10px rgba(239, 68, 68, 0.6)',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              fontWeight: 'bold'
+            }}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="19.2" height="19.2" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span className="group-hover:opacity-80 uppercase">{language === 'chinese' ? '登出' : 'Logout'}</span>
+          </div>
         </div>
       </div>
       )}
 
-      {/* 主內容區：標題與大關卡選擇 [cite: 34, 42] - 當顯示授權挑戰選擇界面時隱藏 */}
-      {!showAuthorizationChallenges && (
-      <main className="flex flex-col items-center justify-center z-10 w-full">
+      {/* 主內容區：標題與大關卡選擇 [cite: 34, 42] - 當顯示挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && !showPhase1Challenges && (
+      <main className="flex flex-col items-center justify-center z-10 w-full px-6">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -305,6 +424,28 @@ const GamePage = () => {
           <p className="text-xl md:text-2xl opacity-80 tracking-[0.3em] font-bold" style={pixelFontStyle}>
             {t.subtitle}
           </p>
+          
+          {/* 繼續遊戲按鈕 - 當有當前進度時顯示 */}
+          {currentScenario && currentScenarioPath && (
+            <motion.button
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              onClick={() => navigate(currentScenarioPath)}
+              className="mt-6 px-8 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-bold text-lg tracking-wider hover:from-cyan-400 hover:to-blue-400 transition-all shadow-lg shadow-cyan-500/30"
+              style={pixelFontStyle}
+            >
+              <span className="flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {language === 'chinese' 
+                  ? `繼續遊戲 - ${currentScenario.title_zh || currentScenario.scenario_code}`
+                  : `Continue - ${currentScenario.title_en || currentScenario.scenario_code}`}
+              </span>
+            </motion.button>
+          )}
         </motion.div>
 
         {/* 核心圖片按鈕區：消除方塊感並增加呼吸動畫 */}
@@ -324,7 +465,9 @@ const GamePage = () => {
               transition: { duration: 5, repeat: Infinity, ease: "easeInOut" }
             }}
             className="cursor-pointer"
-            onClick={() => navigate('/challenge/onboarding/phase1-1', { replace: false })}
+            onClick={() => {
+              setShowPhase1Challenges(true);
+            }}
           >
             <img 
               src={challenge1Img} 
@@ -336,26 +479,46 @@ const GamePage = () => {
 
           {/* 第二階段：交互與防禦 */}
           <motion.div
-            whileHover={{ 
+            whileHover={canStartPhase('phase2') ? { 
               scale: 1.15, 
               y: -15, 
               filter: "drop-shadow(0 0 25px rgba(249, 115, 22, 0.9)) brightness(1.2)" 
-            }}
-            whileTap={{ scale: 0.95 }}
+            } : {}}
+            whileTap={canStartPhase('phase2') ? { scale: 0.95 } : {}}
             initial={{ y: 0 }}
             animate={{ 
               y: [0, -10, 0], 
               transition: { duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }
             }}
-            className="cursor-pointer"
-            onClick={() => setShowAuthorizationChallenges(true)}
+            className={canStartPhase('phase2') ? "cursor-pointer" : "cursor-not-allowed relative"}
+            onClick={() => {
+              if (canStartPhase('phase2')) {
+                setShowAuthorizationChallenges(true);
+              }
+            }}
           >
             <img 
               src={challenge2Img} 
               alt="Phase 2: Advanced Defense" 
               className="w-[380px] md:w-[420px] h-auto transition-all duration-300" 
-              style={{ imageRendering: 'pixelated' }} 
+              style={{ 
+                imageRendering: 'pixelated',
+                filter: canStartPhase('phase2') ? 'none' : 'grayscale(80%) brightness(0.6)'
+              }} 
             />
+            {/* 鎖定標識 */}
+            {!canStartPhase('phase2') && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="bg-black/70 rounded-lg px-6 py-3 flex items-center gap-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <span className="text-gray-300 font-bold text-lg" style={pixelFontStyle}>
+                    {language === 'chinese' ? '完成第一階段解鎖' : 'Complete Phase 1 to Unlock'}
+                  </span>
+                </div>
+              </div>
+            )}
           </motion.div>
         </div>
       </main>
@@ -689,6 +852,182 @@ const GamePage = () => {
                     </table>
                   </div>
                 </div>
+              ) : selectedItem === 2 && currentImageIndex === 5 ? (
+                // 第 3 個道具第 6 頁：主流中心化交易平台網址
+                <div className="p-8 text-white pb-24" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
+                  <h2 className="text-2xl font-bold mb-6 text-center text-cyan-400" style={pixelFontStyle}>
+                    {language === 'chinese' ? '主流中心化交易平台網址' : 'Mainstream Centralized Exchange Platform URLs'}
+                  </h2>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse min-w-[800px]" style={pixelFontStyle}>
+                      <thead>
+                        <tr className="bg-gray-800">
+                          <th className="border-2 border-gray-600 px-4 py-3 text-left text-cyan-400" style={{ width: '10%' }}>
+                            {language === 'chinese' ? '序號' : 'No.'}
+                          </th>
+                          <th className="border-2 border-gray-600 px-4 py-3 text-left text-cyan-400" style={{ width: '20%' }}>
+                            {language === 'chinese' ? '平台名稱' : 'Platform Name'}
+                          </th>
+                          <th className="border-2 border-gray-600 px-4 py-3 text-left text-cyan-400" style={{ width: '70%', minWidth: '400px' }}>
+                            {language === 'chinese' ? '官方網址' : 'Official Website'}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Binance */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">1</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Binance</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.binance.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.binance.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Coinbase */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">2</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Coinbase</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.coinbase.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.coinbase.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Kraken */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">3</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Kraken</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.kraken.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.kraken.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* OKX */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">4</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">OKX</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.okx.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.okx.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Bybit */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">5</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Bybit</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.bybit.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.bybit.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Bitget */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">6</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Bitget</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.bitget.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.bitget.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* KuCoin */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">7</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">KuCoin</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.kucoin.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.kucoin.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Gate.io */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">8</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Gate.io</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.gate.io" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.gate.io
+                            </a>
+                          </td>
+                        </tr>
+                        {/* HTX */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">9</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">HTX</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.htx.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.htx.com
+                            </a>
+                          </td>
+                        </tr>
+                        {/* Crypto.com */}
+                        <tr className="bg-gray-700 hover:bg-gray-600">
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold text-center">10</td>
+                          <td className="border-2 border-gray-600 px-4 py-3 font-bold">Crypto.com</td>
+                          <td className="border-2 border-gray-600 px-4 py-3">
+                            <a 
+                              href="https://www.crypto.com" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline"
+                            >
+                              https://www.crypto.com
+                            </a>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               ) : selectedItem === 4 && currentImageIndex === 9 ? (
                 // 第 5 個道具第 10 頁：Pocket Universe & Revoke.cash 文字說明
                 <div className="p-8 text-white text-left space-y-6" style={{ maxHeight: '75vh', overflowY: 'auto' }}>
@@ -773,7 +1112,7 @@ const GamePage = () => {
             </div>
             
             {/* 導航按鈕 - 位置放低避免擋住圖片 */}
-            <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 flex gap-4 items-center z-10">
+            <div className="absolute -bottom-12 left-1/2 transform -translate-x-1/2 flex gap-4 items-center z-10">
               {/* 上一頁按鈕 */}
               <button
                 onClick={handlePrevImage}
@@ -814,10 +1153,10 @@ const GamePage = () => {
                 }}
               >
                 {currentImageIndex + 1} / {
-                  // 第三個道具有5頁（4張圖片 + 1頁表格）
+                  // 第三個道具有6頁（4張圖片 + 1頁表格 + 1頁平台網址）
                   // 第五個道具有10頁（9張圖片 + 1頁文字說明）
                   selectedItem === 2 
-                    ? 5 
+                    ? 6 
                     : selectedItem === 4
                     ? 10
                     : (items[selectedItem].images[language]?.length || items[selectedItem].images.chinese.length)
@@ -867,9 +1206,32 @@ const GamePage = () => {
         />
       )}
 
-      {/* 底部基石文字 - 當顯示授權挑戰選擇界面時隱藏 */}
-      {!showAuthorizationChallenges && (
-        <footer className="absolute bottom-10 w-full text-center opacity-40 text-xs tracking-[0.5em] uppercase" style={pixelFontStyle}>
+      {/* Phase 1 挑戰選擇界面 */}
+      {showPhase1Challenges && (
+        <PhaseRoadmap
+          language={language}
+          setLanguage={setLanguage}
+          onSelectChallenge={(challenge) => {
+            navigate(challenge.route, { replace: false });
+            setShowPhase1Challenges(false);
+          }}
+          onClose={() => setShowPhase1Challenges(false)}
+          onOpenBackpack={() => setShowBackpack(true)}
+        />
+      )}
+
+      {/* 統計界面 */}
+      {showStatistics && (
+        <UserStatistics
+          userId={userId}
+          language={language}
+          onClose={() => setShowStatistics(false)}
+        />
+      )}
+
+      {/* 底部基石文字 - 當顯示挑戰選擇界面時隱藏 */}
+      {!showAuthorizationChallenges && !showPhase1Challenges && (
+        <footer className="absolute bottom-10 w-full text-center opacity-40 text-xs tracking-[0.5em] uppercase px-8" style={pixelFontStyle}>
           ✦The website information is just use for anti-phishing education. The game challenges mimic web pages and are not intended for phishing.✦
         </footer>
       )}

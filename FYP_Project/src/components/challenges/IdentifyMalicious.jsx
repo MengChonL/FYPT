@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useGame } from '../../context/GameContext';
+import { useAttemptTracking } from '../../hooks/useAttemptTracking';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
 import BrowserFrame from './BrowserFrame';
 import MetaMaskFox from '../../assets/MetaMask_Fox.png';
+import SignInRequest from '../../assets/Sign-inRequest.png';
+import Permission01 from '../../assets/permission01.png';
 
 // Icons components
 const WarningIcon = () => (
@@ -31,13 +35,15 @@ const CheckIconSmall = () => (
   </svg>
 );
 
-const IdentifyMalicious = ({ config }) => {
+const IdentifyMalicious = ({ config, language: propLanguage }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { getPhaseByScenarioCode, completeScenarioAndUnlockNext } = useGame();
+  const { startTracking, recordStageError } = useAttemptTracking(config?.id);
   const [view, setView] = useState('intro'); // 'intro' | 'challenge'
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [language, setLanguage] = useState('chinese');
+  const [language, setLanguage] = useState(propLanguage || 'chinese');
   const [stage, setStage] = useState(1); // 1: Domain Check, 2: Contract Content Check, 3: Function Matching
   
   // Drag and Drop State (Stage 1)
@@ -60,6 +66,29 @@ const IdentifyMalicious = ({ config }) => {
   // Item Reminder State
   const [showItemReminder, setShowItemReminder] = useState(false);
   const [openBackpack, setOpenBackpack] = useState(false);
+  const [autoOpenItemIndex, setAutoOpenItemIndex] = useState(null); // 自動打開的道具索引
+
+  // Touch Drag State (for tablet/mobile support - Stage 1)
+  const [touchDragState, setTouchDragState] = useState({
+    isDragging: false,
+    item: null,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0,
+    targetBox: null
+  });
+
+  // Touch Drag State (for tablet/mobile support - Stage 3)
+  const [touchFunctionDragState, setTouchFunctionDragState] = useState({
+    isDragging: false,
+    item: null,
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    currentY: 0,
+    targetFunctionId: null
+  });
 
   // 授權相關網址清單
   const authorizationUrls = [
@@ -261,6 +290,7 @@ Transaction Fee (Gas):
     setFunctionErrorItems([]);
     setShowItemReminder(false);
     setOpenBackpack(false);
+    setAutoOpenItemIndex(null);
   }, [location.pathname, config]);
 
   if (!config) {
@@ -272,31 +302,22 @@ Transaction Fee (Gas):
   }
 
   // 处理下一关导航
-  const handleNextLevel = () => {
+  const handleNextLevel = async () => {
+    console.log('🎮 IdentifyMalicious handleNextLevel called');
+    console.log('📊 config.id:', config?.id);
+    console.log('📊 config.nextLevel:', config?.nextLevel);
+    
+    // 記錄成功答題並進入下一關
+    if (config?.id && config?.nextLevel) {
+      console.log('✅ Recording success and saving progress...');
+      await completeScenarioAndUnlockNext(config.id, config.nextLevel, true, null);
+    }
     if (config?.nextLevel) {
-      // nextLevel 格式可能是 'phase1-2' (完整id) 或 'phase2-judge-auth' (phase + id)
-      // 需要判断格式并提取 phase 和 id
-      const parts = config.nextLevel.split('-');
-      if (parts[0].startsWith('phase')) {
-        // 如果 nextLevel 以 phase 开头
-        if (parts.length === 2 && !isNaN(parts[1])) {
-          // 格式: 'phase1-2' -> phase: 'phase1', id: 'phase1-2' (整个 nextLevel 就是 id)
-          const phase = parts[0];
-          navigate(`/challenge/${phase}/${config.nextLevel}`);
-        } else if (parts.length > 2) {
-          // 格式: 'phase2-judge-auth' -> phase: 'phase2', id: 'judge-auth'
-          const phase = parts[0];
-          const id = parts.slice(1).join('-'); // 处理 id 中可能包含 '-' 的情况
-          navigate(`/challenge/${phase}/${id}`);
-        } else {
-          // 其他情况，使用整个 nextLevel 作为 id
-          const phase = parts[0];
-          navigate(`/challenge/${phase}/${config.nextLevel}`);
-        }
+      const phase = getPhaseByScenarioCode(config.nextLevel);
+      if (phase) {
+        navigate(`/challenge/${phase}/${config.nextLevel}`, { state: { skipToIntro: true } });
       } else {
-        // 格式: 'judge-auth' -> 使用当前 phase (从路由中获取)
-        const currentPhase = location.pathname.split('/')[2] || 'phase2';
-        navigate(`/challenge/${currentPhase}/${config.nextLevel}`);
+        console.error('Cannot find phase for scenario:', config.nextLevel);
       }
     }
   };
@@ -321,7 +342,7 @@ Transaction Fee (Gas):
     setFunctionErrorItems([]);
   };
 
-  // Stage 3: 拖拽处理函数
+  // Stage 3: 拖拽处理函数 (Mouse/Desktop)
   const handleFunctionDragStart = (e, item) => {
     setDraggedItem(item);
     e.dataTransfer.effectAllowed = "move";
@@ -355,6 +376,111 @@ Transaction Fee (Gas):
     setDraggedItem(null);
   };
 
+  // Stage 3: Touch Handlers (Tablet/Mobile)
+  const handleFunctionTouchStart = (e, item) => {
+    const touch = e.touches[0];
+    setTouchFunctionDragState({
+      isDragging: true,
+      item: item,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      currentX: touch.clientX,
+      currentY: touch.clientY,
+      targetFunctionId: null
+    });
+    e.preventDefault(); // Prevent scrolling while dragging
+  };
+
+  // Prevent default touch behavior on document when dragging (Stage 3)
+  useEffect(() => {
+    if (touchFunctionDragState.isDragging && stage === 3) {
+      const handleTouchMoveGlobal = (e) => {
+        if (!touchFunctionDragState.isDragging) return;
+        
+        const touch = e.touches[0];
+        const currentX = touch.clientX;
+        const currentY = touch.clientY;
+
+        // Find which function box the touch is over
+        const elements = document.elementsFromPoint(currentX, currentY);
+        let targetFunctionId = null;
+        
+        for (const el of elements) {
+          const functionId = el.getAttribute('data-function-drop-zone');
+          if (functionId) {
+            targetFunctionId = parseInt(functionId);
+            break;
+          }
+        }
+
+        setTouchFunctionDragState(prev => ({
+          ...prev,
+          currentX,
+          currentY,
+          targetFunctionId
+        }));
+        e.preventDefault(); // Prevent scrolling
+      };
+
+      const handleTouchEndGlobal = (e) => {
+        if (!touchFunctionDragState.isDragging || !touchFunctionDragState.item) {
+          setTouchFunctionDragState({
+            isDragging: false,
+            item: null,
+            startX: 0,
+            startY: 0,
+            currentX: 0,
+            currentY: 0,
+            targetFunctionId: null
+          });
+          return;
+        }
+
+        const item = touchFunctionDragState.item;
+        const targetFunctionId = touchFunctionDragState.targetFunctionId;
+
+        // 从所有位置移除
+        setFunctionItems(prev => prev.filter(i => i.id !== item.id));
+        setFunctionBoxes(prev => {
+          const newBoxes = { ...prev };
+          Object.keys(newBoxes).forEach(key => {
+            newBoxes[key] = newBoxes[key].filter(i => i.id !== item.id);
+          });
+          return newBoxes;
+        });
+
+        // 添加到目标函数框（如果有有效目标）
+        if (targetFunctionId) {
+          setFunctionBoxes(prev => ({
+            ...prev,
+            [targetFunctionId]: [...(prev[targetFunctionId] || []), item]
+          }));
+        } else {
+          // If dropped outside, return to center
+          setFunctionItems(prev => [...prev, item]);
+        }
+
+        // Reset touch drag state
+        setTouchFunctionDragState({
+          isDragging: false,
+          item: null,
+          startX: 0,
+          startY: 0,
+          currentX: 0,
+          currentY: 0,
+          targetFunctionId: null
+        });
+      };
+
+      document.addEventListener('touchmove', handleTouchMoveGlobal, { passive: false });
+      document.addEventListener('touchend', handleTouchEndGlobal, { passive: false });
+      return () => {
+        document.removeEventListener('touchmove', handleTouchMoveGlobal);
+        document.removeEventListener('touchend', handleTouchEndGlobal);
+      };
+    }
+  }, [touchFunctionDragState.isDragging, touchFunctionDragState.item, touchFunctionDragState.targetFunctionId, stage]);
+
   const handleFunctionItemBackToCenter = (e, item, functionId) => {
     e.preventDefault();
     e.stopPropagation();
@@ -367,7 +493,7 @@ Transaction Fee (Gas):
   };
 
   // Stage 3: 检查函数匹配结果
-  const checkFunctionResult = () => {
+  const checkFunctionResult = async () => {
     const errors = [];
 
     // 检查未分类的功能
@@ -424,11 +550,27 @@ Transaction Fee (Gas):
     });
 
     setFunctionErrorItems(errors);
-    setIsCorrect(errors.length === 0 && functionItems.length === 0);
+    const isSuccess = errors.length === 0 && functionItems.length === 0;
+    setIsCorrect(isSuccess);
     setShowResult(true);
+    
+    // 記錄 Stage 3 函數匹配錯誤（不結束 attempt）
+    if (!isSuccess && config?.id) {
+      await recordStageError({
+        error_type: 'wrong_function_matching',
+        stage: 3,
+        stage_name: 'Function Matching',
+        errors: errors.map(e => ({
+          function_id: e.functionId,
+          assigned_item: e.functionItem?.descriptionEn || 'none',
+          reason: e.reasonEn
+        })),
+        description: `Stage 3: Made ${errors.length} function matching error(s)`
+      });
+    }
   };
 
-  // Drag Handlers
+  // Drag Handlers (Mouse/Desktop - Stage 1)
   const handleDragStart = (e, item) => {
     setDraggedItem(item);
     e.dataTransfer.effectAllowed = "move";
@@ -459,8 +601,114 @@ Transaction Fee (Gas):
     setDraggedItem(null);
   };
 
+  // Touch Handlers (Tablet/Mobile - Stage 1)
+  const handleTouchStart = (e, item) => {
+    const touch = e.touches[0];
+    setTouchDragState({
+      isDragging: true,
+      item: item,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      currentX: touch.clientX,
+      currentY: touch.clientY,
+      targetBox: null
+    });
+    e.preventDefault(); // Prevent scrolling while dragging
+  };
+
+  // Prevent default touch behavior on document when dragging (Stage 1)
+  useEffect(() => {
+    if (touchDragState.isDragging && stage === 1) {
+      const handleTouchMoveGlobal = (e) => {
+        if (!touchDragState.isDragging) return;
+        
+        const touch = e.touches[0];
+        const currentX = touch.clientX;
+        const currentY = touch.clientY;
+
+        // Find which box the touch is over
+        const elements = document.elementsFromPoint(currentX, currentY);
+        let targetBox = null;
+        
+        for (const el of elements) {
+          if (el.getAttribute('data-drop-zone') === 'phishing') {
+            targetBox = 'phishing';
+            break;
+          } else if (el.getAttribute('data-drop-zone') === 'legit') {
+            targetBox = 'legit';
+            break;
+          } else if (el.getAttribute('data-drop-zone') === 'center') {
+            targetBox = 'center';
+            break;
+          }
+        }
+
+        setTouchDragState(prev => ({
+          ...prev,
+          currentX,
+          currentY,
+          targetBox
+        }));
+        e.preventDefault(); // Prevent scrolling
+      };
+
+      const handleTouchEndGlobal = (e) => {
+        if (!touchDragState.isDragging || !touchDragState.item) {
+          setTouchDragState({
+            isDragging: false,
+            item: null,
+            startX: 0,
+            startY: 0,
+            currentX: 0,
+            currentY: 0,
+            targetBox: null
+          });
+          return;
+        }
+
+        const item = touchDragState.item;
+        const targetBox = touchDragState.targetBox;
+
+        // Remove from all lists first
+        setItems(prev => prev.filter(i => i.id !== item.id));
+        setPhishingBox(prev => prev.filter(i => i.id !== item.id));
+        setLegitBox(prev => prev.filter(i => i.id !== item.id));
+
+        // Add to target (if valid target, otherwise return to center)
+        if (targetBox === 'phishing') {
+          setPhishingBox(prev => [...prev, item]);
+        } else if (targetBox === 'legit') {
+          setLegitBox(prev => [...prev, item]);
+        } else if (targetBox === 'center') {
+          setItems(prev => [...prev, item]);
+        } else {
+          // If dropped outside, return to center
+          setItems(prev => [...prev, item]);
+        }
+
+        // Reset touch drag state
+        setTouchDragState({
+          isDragging: false,
+          item: null,
+          startX: 0,
+          startY: 0,
+          currentX: 0,
+          currentY: 0,
+          targetBox: null
+        });
+      };
+
+      document.addEventListener('touchmove', handleTouchMoveGlobal, { passive: false });
+      document.addEventListener('touchend', handleTouchEndGlobal, { passive: false });
+      return () => {
+        document.removeEventListener('touchmove', handleTouchMoveGlobal);
+        document.removeEventListener('touchend', handleTouchEndGlobal);
+      };
+    }
+  }, [touchDragState.isDragging, touchDragState.item, touchDragState.targetBox, stage]);
+
   // Stage 1: 检查域名分类结果
-  const checkResult = () => {
+  const checkResult = async () => {
     const errors = [];
 
     // 未分類
@@ -501,8 +749,23 @@ Transaction Fee (Gas):
     });
 
     setErrorItems(errors);
-    setIsCorrect(errors.length === 0 && items.length === 0);
+    const isSuccess = errors.length === 0 && items.length === 0;
+    setIsCorrect(isSuccess);
     setShowResult(true);
+    
+    // 記錄 Stage 1 域名分類錯誤（不結束 attempt）
+    if (!isSuccess && config?.id) {
+      await recordStageError({
+        error_type: 'wrong_domain_classification',
+        stage: 1,
+        stage_name: 'Domain Classification',
+        errors: errors.map(e => ({
+          url: e.name,
+          reason: e.reasonEn
+        })),
+        description: `Stage 1: Made ${errors.length} domain classification error(s)`
+      });
+    }
   };
 
   // Stage 2: 处理合约内容选择
@@ -514,7 +777,7 @@ Transaction Fee (Gas):
   };
 
   // Stage 2: 检查合约内容判别结果
-  const checkContractResult = () => {
+  const checkContractResult = async () => {
     const errors = [];
     
     // 检查是否所有合约都已选择
@@ -545,8 +808,25 @@ Transaction Fee (Gas):
     });
 
     setContractErrorItems(errors);
-    setIsCorrect(errors.length === 0);
+    const isSuccess = errors.length === 0;
+    setIsCorrect(isSuccess);
     setShowResult(true);
+    
+    // 記錄 Stage 2 合約內容判別錯誤（不結束 attempt）
+    if (!isSuccess && config?.id) {
+      await recordStageError({
+        error_type: 'wrong_contract_identification',
+        stage: 2,
+        stage_name: 'Contract Content Identification',
+        errors: errors.map(e => ({
+          contract_id: e.contractId,
+          user_selected: selectedAnswers[e.contractId] || 'not_selected',
+          correct_answer: e.contract?.type,
+          reason: e.reasonEn
+        })),
+        description: `Stage 2: Made ${errors.length} contract identification error(s)`
+      });
+    }
   };
 
   // Stage 1: 成功時顯示正確識別的釣魚網站
@@ -596,12 +876,6 @@ Transaction Fee (Gas):
           showValue: true,
           details: (
             <div className="mt-2">
-              <pre className="bg-gray-800 p-4 rounded-lg text-sm text-gray-300 overflow-x-auto mb-3">
-                {contract.content}
-              </pre>
-              <p className="text-gray-300 leading-relaxed mb-4">
-                {language === 'chinese' ? contract.explanationZh : contract.explanationEn}
-              </p>
               {detailed && (
                 <div className="bg-gray-800/50 p-4 rounded-lg space-y-3">
                   <div>
@@ -699,16 +973,10 @@ Transaction Fee (Gas):
           showValue: true,
           details: (
             <div className="mt-2">
-              <pre className="bg-gray-800 p-4 rounded-lg text-sm text-gray-300 overflow-x-auto mb-3">
-                {contract.content}
-              </pre>
               <p className="text-lg font-semibold text-green-300 mb-2">
                 {language === 'chinese' ? '正確答案' : 'Correct Answer'}: {language === 'chinese' 
                   ? (contract.type === 'connect' ? '連接內容' : '授權內容')
                   : (contract.type === 'connect' ? 'Connection' : 'Authorization')}
-              </p>
-              <p className="text-gray-300 leading-relaxed mb-4">
-                {language === 'chinese' ? contract.explanationZh : contract.explanationEn}
               </p>
               {detailed && (
                 <div className="bg-gray-800/50 p-4 rounded-lg space-y-3">
@@ -816,8 +1084,13 @@ Transaction Fee (Gas):
             <button
               onClick={() => {
                 setShowItemReminder(false);
+                // 自動打開「授權知識指南」（items[4]）
+                setAutoOpenItemIndex(4);
                 setOpenBackpack(true);
-                setTimeout(() => setOpenBackpack(false), 100);
+                setTimeout(() => {
+                  setOpenBackpack(false);
+                  setAutoOpenItemIndex(null);
+                }, 100);
               }}
               className="flex-1 py-4 bg-purple-200 hover:bg-purple-300 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(147,51,234,0.4)] transform hover:scale-[1.02]"
             >
@@ -848,140 +1121,27 @@ Transaction Fee (Gas):
 
     const renderMetaMaskNotification = () => {
       if (contract.id === 1) {
+        // 连接内容 - 使用 Sign-inRequest 图片
         return (
-          <div className="space-y-6">
-            {/* MetaMask 通知样式 - 合约1 */}
-            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-md">
-              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200">
-                <img src={MetaMaskFox} alt="MetaMask" className="w-10 h-10" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }} />
-                <h4 className="text-lg font-bold" style={{ color: '#7c3aed' }}>MetaMask Notification</h4>
-              </div>
-              <div className="space-y-3">
-                <div className="text-sm text-gray-700 font-mono leading-relaxed">
-                  <p className="mb-2">opensea.io wants you to sign in with your account:</p>
-                  <p className="font-semibold mb-4">0x742d35Cc6634C0532925a3b8D4C9Fb2f2e2f0891</p>
-                  <p className="mb-4">Click to sign in and accept the OpenSea Terms of Service (https://opensea.io/tos) and Privacy Policy (https://opensea.io/privacy).</p>
-                  <div className="space-y-1 text-xs bg-gray-50 p-4 rounded border border-gray-200">
-                    <p><span className="font-semibold">URI:</span> https://opensea.io/</p>
-                    <p><span className="font-semibold">Version:</span> 1</p>
-                    <p><span className="font-semibold">Chain ID:</span> 1</p>
-                    <p><span className="font-semibold">Nonce:</span> 6rrg7il05ub2slhdcquidmqe83</p>
-                    <p><span className="font-semibold">Issued At:</span> 2026-01-02T11:48:08.289Z</p>
-                  </div>
-                  <div className="flex gap-4 mt-6 pt-4 border-t border-gray-200 justify-center">
-                    <button 
-                      ref={(el) => {
-                        if (el) {
-                          el.style.setProperty('background-color', '#000000', 'important');
-                          el.style.setProperty('color', '#ffffff', 'important');
-                          el.style.setProperty('border', 'none', 'important');
-                        }
-                      }}
-                      className="px-6 py-2 rounded-lg font-semibold transition-all" 
-                      style={{ 
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-                      }}
-                      onMouseEnter={(e) => { 
-                        e.currentTarget.style.setProperty('background-color', '#1a1a1a', 'important');
-                      }}
-                      onMouseLeave={(e) => { 
-                        e.currentTarget.style.setProperty('background-color', '#000000', 'important');
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      ref={(el) => {
-                        if (el) {
-                          el.style.setProperty('background-color', '#000000', 'important');
-                          el.style.setProperty('color', '#ffffff', 'important');
-                          el.style.setProperty('border', 'none', 'important');
-                        }
-                      }}
-                      className="px-6 py-2 rounded-lg font-semibold transition-all" 
-                      style={{ 
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-                      }}
-                      onMouseEnter={(e) => { 
-                        e.currentTarget.style.setProperty('background-color', '#1a1a1a', 'important');
-                      }}
-                      onMouseLeave={(e) => { 
-                        e.currentTarget.style.setProperty('background-color', '#000000', 'important');
-                      }}
-                    >
-                      Connect
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="flex justify-center items-center w-full">
+            <img 
+              src={SignInRequest} 
+              alt="Sign-in Request" 
+              className="max-w-full h-auto rounded-lg shadow-lg"
+              style={{ maxHeight: '70vh' }}
+            />
           </div>
         );
       } else if (contract.id === 2) {
+        // 授权内容 - 使用 permission01 图片
         return (
-          <div className="space-y-6">
-            {/* MetaMask 通知样式 - 合约2 */}
-            <div className="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-md">
-              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-gray-200">
-                <img src={MetaMaskFox} alt="MetaMask" className="w-10 h-10" style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }} />
-                <h4 className="text-lg font-bold" style={{ color: '#7c3aed' }}>MetaMask Notification</h4>
-              </div>
-              <div className="space-y-3">
-                <div className="text-sm text-gray-700 font-mono leading-relaxed">
-                  <p className="mb-4">Give permission to access your USDT</p>
-                  <p className="mb-2">Grant access to:</p>
-                  <p className="font-semibold mb-6">Uniswap V3 Router</p>
-                  <div className="mb-4">
-                    <p className="mb-1">Transaction Fee (Gas):</p>
-                    <p className="font-semibold">0.002 ETH ($3.50)</p>
-                  </div>
-                  <div className="flex gap-4 mt-6 pt-4 border-t border-gray-200 justify-center">
-                    <button 
-                      ref={(el) => {
-                        if (el) {
-                          el.style.setProperty('background-color', '#000000', 'important');
-                          el.style.setProperty('color', '#ffffff', 'important');
-                          el.style.setProperty('border', 'none', 'important');
-                        }
-                      }}
-                      className="px-6 py-2 rounded-lg font-semibold transition-all" 
-                      style={{ 
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-                      }}
-                      onMouseEnter={(e) => { 
-                        e.currentTarget.style.setProperty('background-color', '#1a1a1a', 'important');
-                      }}
-                      onMouseLeave={(e) => { 
-                        e.currentTarget.style.setProperty('background-color', '#000000', 'important');
-                      }}
-                    >
-                      Reject
-                    </button>
-                    <button 
-                      ref={(el) => {
-                        if (el) {
-                          el.style.setProperty('background-color', '#000000', 'important');
-                          el.style.setProperty('color', '#ffffff', 'important');
-                          el.style.setProperty('border', 'none', 'important');
-                        }
-                      }}
-                      className="px-6 py-2 rounded-lg font-semibold transition-all" 
-                      style={{ 
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
-                      }}
-                      onMouseEnter={(e) => { 
-                        e.currentTarget.style.setProperty('background-color', '#1a1a1a', 'important');
-                      }}
-                      onMouseLeave={(e) => { 
-                        e.currentTarget.style.setProperty('background-color', '#000000', 'important');
-                      }}
-                    >
-                      Confirm
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div className="flex justify-center items-center w-full">
+            <img 
+              src={Permission01} 
+              alt="Permission Request" 
+              className="max-w-full h-auto rounded-lg shadow-lg"
+              style={{ maxHeight: '70vh' }}
+            />
           </div>
         );
       }
@@ -1019,13 +1179,14 @@ Transaction Fee (Gas):
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => handleSelectAnswer(contract.id, 'connect')}
-                  className={`p-6 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+                  className={`p-6 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden ${
                     isSelectedConnect
-                      ? 'bg-black text-white shadow-lg'
+                      ? 'bg-gradient-to-br from-green-600 to-green-700 text-white border-4 border-green-400'
                       : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400'
                   }`}
                   style={isSelectedConnect ? {
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                    boxShadow: '0 0 30px rgba(34, 197, 94, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2)',
+                    animation: 'pulse-glow 2s ease-in-out infinite'
                   } : {}}
                   onMouseEnter={(e) => {
                     if (!isSelectedConnect) {
@@ -1038,10 +1199,17 @@ Transaction Fee (Gas):
                     }
                   }}
                 >
-                  <div className="text-xl font-bold mb-2">
+                  {isSelectedConnect && (
+                    <div className="absolute top-2 right-2">
+                      <svg className="w-8 h-8 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className={`text-xl font-bold mb-2 ${isSelectedConnect ? 'text-white' : ''}`}>
                     {language === 'chinese' ? '連接內容' : 'Connection'}
                   </div>
-                  <div className="text-sm opacity-90">
+                  <div className={`text-sm ${isSelectedConnect ? 'text-white opacity-95' : 'opacity-90'}`}>
                     {language === 'chinese' 
                       ? '僅讀取帳戶信息，不涉及資產轉移'
                       : 'Read account info only, no asset transfer'}
@@ -1050,13 +1218,14 @@ Transaction Fee (Gas):
                 
                 <button
                   onClick={() => handleSelectAnswer(contract.id, 'authorize')}
-                  className={`p-6 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
+                  className={`p-6 rounded-xl transition-all transform hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden ${
                     isSelectedAuthorize
-                      ? 'bg-black text-white shadow-lg'
+                      ? 'bg-gradient-to-br from-red-600 to-red-700 text-white border-4 border-red-400'
                       : 'bg-white border-2 border-gray-300 text-gray-700 hover:border-gray-400'
                   }`}
                   style={isSelectedAuthorize ? {
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                    boxShadow: '0 0 30px rgba(239, 68, 68, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2)',
+                    animation: 'pulse-glow-red 2s ease-in-out infinite'
                   } : {}}
                   onMouseEnter={(e) => {
                     if (!isSelectedAuthorize) {
@@ -1069,10 +1238,17 @@ Transaction Fee (Gas):
                     }
                   }}
                 >
-                  <div className="text-xl font-bold mb-2">
+                  {isSelectedAuthorize && (
+                    <div className="absolute top-2 right-2">
+                      <svg className="w-8 h-8 text-white drop-shadow-lg" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                  <div className={`text-xl font-bold mb-2 ${isSelectedAuthorize ? 'text-white' : ''}`}>
                     {language === 'chinese' ? '授權內容' : 'Authorization'}
                   </div>
-                  <div className="text-sm opacity-90">
+                  <div className={`text-sm ${isSelectedAuthorize ? 'text-white opacity-95' : 'opacity-90'}`}>
                     {language === 'chinese' 
                       ? '涉及資產操作，如轉移代幣、批准花費'
                       : 'Involves asset operations, e.g., transfer tokens, approve spending'}
@@ -1221,8 +1397,17 @@ Transaction Fee (Gas):
                       <div
                         key={func.id}
                         className="bg-blue-900/20 border-4 border-blue-500 flex flex-col transition-colors hover:bg-blue-900/30 min-h-[150px]"
+                        data-function-drop-zone={func.id}
                         onDragOver={handleFunctionDragOver}
                         onDrop={(e) => handleFunctionDrop(e, func.id)}
+                        style={{
+                          borderColor: touchFunctionDragState.isDragging && touchFunctionDragState.targetFunctionId === func.id
+                            ? '#fbbf24'
+                            : '#3b82f6',
+                          borderWidth: touchFunctionDragState.isDragging && touchFunctionDragState.targetFunctionId === func.id
+                            ? '6px'
+                            : '4px'
+                        }}
                       >
                         <div className="bg-blue-500 text-white font-bold text-sm p-2 text-center uppercase">
                           {func.name}
@@ -1263,7 +1448,18 @@ Transaction Fee (Gas):
                         key={item.id}
                         draggable
                         onDragStart={(e) => handleFunctionDragStart(e, item)}
-                        className="bg-slate-700 p-3 text-white text-sm shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all border-2 border-slate-500"
+                        onTouchStart={(e) => handleFunctionTouchStart(e, item)}
+                        className="bg-slate-700 p-3 text-white text-sm shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all border-2 border-slate-500 touch-none select-none"
+                        style={{
+                          userSelect: 'none',
+                          WebkitUserSelect: 'none',
+                          WebkitTouchCallout: 'none',
+                          transform: touchFunctionDragState.isDragging && touchFunctionDragState.item?.id === item.id
+                            ? `translate(${touchFunctionDragState.currentX - touchFunctionDragState.startX}px, ${touchFunctionDragState.currentY - touchFunctionDragState.startY}px)`
+                            : undefined,
+                          opacity: touchFunctionDragState.isDragging && touchFunctionDragState.item?.id === item.id ? 0.7 : 1,
+                          zIndex: touchFunctionDragState.isDragging && touchFunctionDragState.item?.id === item.id ? 1000 : 1
+                        }}
                       >
                         {language === 'chinese' ? item.descriptionZh : item.descriptionEn}
                       </div>
@@ -1341,7 +1537,10 @@ Transaction Fee (Gas):
             </div>
           </div>
           <button 
-            onClick={() => setShowItemReminder(true)}
+            onClick={async () => {
+              await startTracking(); // 開始計時
+              setShowItemReminder(true);
+            }}
             className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] transform hover:scale-[1.02]"
           >
             {language === 'chinese' ? '開始挑戰' : 'Start Challenge'}
@@ -1352,13 +1551,33 @@ Transaction Fee (Gas):
   };
 
   return (
-    <ChallengeTemplate
-      language={language}
-      setLanguage={setLanguage}
-      containerMaxWidth="100vw"
-      containerMaxHeight="100vh"
-      openBackpack={openBackpack}
-    >
+    <>
+      <style>{`
+        @keyframes pulse-glow {
+          0%, 100% {
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 50px rgba(34, 197, 94, 1), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+        }
+        @keyframes pulse-glow-red {
+          0%, 100% {
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.8), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+          50% {
+            box-shadow: 0 0 50px rgba(239, 68, 68, 1), 0 8px 24px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.2);
+          }
+        }
+      `}</style>
+      <ChallengeTemplate
+        language={language}
+        setLanguage={setLanguage}
+        containerMaxWidth="100vw"
+        containerMaxHeight="100vh"
+        openBackpack={openBackpack}
+      autoOpenItemIndex={autoOpenItemIndex}
+      >
       {/* 道具提醒消息框 */}
       {renderItemReminder()}
       
@@ -1398,8 +1617,17 @@ Transaction Fee (Gas):
                   {/* Red Box - Phishing */}
                   <div 
                     className="flex-1 bg-red-900/20 border-4 border-red-500 flex flex-col transition-colors hover:bg-red-900/30"
+                    data-drop-zone="phishing"
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, 'phishing')}
+                    style={{
+                      borderColor: touchDragState.isDragging && touchDragState.targetBox === 'phishing' 
+                        ? '#fbbf24' 
+                        : '#ef4444',
+                      borderWidth: touchDragState.isDragging && touchDragState.targetBox === 'phishing' 
+                        ? '6px' 
+                        : '4px'
+                    }}
                   >
                     {/* Pixel X background */}
                     <div className="absolute inset-0 opacity-10 pointer-events-none"
@@ -1422,7 +1650,13 @@ Transaction Fee (Gas):
                           key={item.id} 
                           draggable 
                           onDragStart={(e) => handleDragStart(e, item)}
-                          className="bg-red-500/10 p-3 text-red-300 border-2 border-red-500/50 cursor-grab active:cursor-grabbing hover:bg-red-500/20 flex items-start"
+                          onTouchStart={(e) => handleTouchStart(e, item)}
+                          className="bg-red-500/10 p-3 text-red-300 border-2 border-red-500/50 cursor-grab active:cursor-grabbing hover:bg-red-500/20 flex items-start touch-none select-none"
+                          style={{
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            WebkitTouchCallout: 'none'
+                          }}
                         >
                           <AlertIconSmall />
                           <span className="text-sm">{item.name}</span>
@@ -1434,8 +1668,17 @@ Transaction Fee (Gas):
                   {/* Center - Source */}
                   <div 
                     className="flex-1 flex flex-col bg-slate-800 border-4 border-slate-600 p-4"
+                    data-drop-zone="center"
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, 'center')}
+                    style={{
+                      borderColor: touchDragState.isDragging && touchDragState.targetBox === 'center' 
+                        ? '#fbbf24' 
+                        : '#475569',
+                      borderWidth: touchDragState.isDragging && touchDragState.targetBox === 'center' 
+                        ? '6px' 
+                        : '4px'
+                    }}
                   >
                     <div className="flex-1 overflow-y-auto space-y-3 p-2">
                       {items.map(item => (
@@ -1443,7 +1686,18 @@ Transaction Fee (Gas):
                           key={item.id} 
                           draggable 
                           onDragStart={(e) => handleDragStart(e, item)}
-                          className="bg-slate-700 p-3 text-white text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all border-2 border-slate-500"
+                          onTouchStart={(e) => handleTouchStart(e, item)}
+                          className="bg-slate-700 p-3 text-white text-center shadow-[4px_4px_0px_0px_rgba(0,0,0,0.3)] cursor-grab active:cursor-grabbing hover:translate-y-[-2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.3)] transition-all border-2 border-slate-500 touch-none select-none"
+                          style={{
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            WebkitTouchCallout: 'none',
+                            transform: touchDragState.isDragging && touchDragState.item?.id === item.id
+                              ? `translate(${touchDragState.currentX - touchDragState.startX}px, ${touchDragState.currentY - touchDragState.startY}px)`
+                              : undefined,
+                            opacity: touchDragState.isDragging && touchDragState.item?.id === item.id ? 0.7 : 1,
+                            zIndex: touchDragState.isDragging && touchDragState.item?.id === item.id ? 1000 : 1
+                          }}
                         >
                           {item.name}
                         </div>
@@ -1479,8 +1733,17 @@ Transaction Fee (Gas):
                   {/* Green Box - Legit */}
                   <div 
                     className="flex-1 bg-green-900/20 border-4 border-green-500 flex flex-col transition-colors hover:bg-green-900/30"
+                    data-drop-zone="legit"
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, 'legit')}
+                    style={{
+                      borderColor: touchDragState.isDragging && touchDragState.targetBox === 'legit' 
+                        ? '#fbbf24' 
+                        : '#22c55e',
+                      borderWidth: touchDragState.isDragging && touchDragState.targetBox === 'legit' 
+                        ? '6px' 
+                        : '4px'
+                    }}
                   >
                     {/* Pixel check background */}
                     <div className="absolute inset-0 opacity-10 pointer-events-none"
@@ -1503,7 +1766,13 @@ Transaction Fee (Gas):
                           key={item.id} 
                           draggable 
                           onDragStart={(e) => handleDragStart(e, item)}
-                          className="bg-green-500/10 p-3 text-green-300 border-2 border-green-500/50 cursor-grab active:cursor-grabbing hover:bg-green-500/20 flex items-start"
+                          onTouchStart={(e) => handleTouchStart(e, item)}
+                          className="bg-green-500/10 p-3 text-green-300 border-2 border-green-500/50 cursor-grab active:cursor-grabbing hover:bg-green-500/20 flex items-start touch-none select-none"
+                          style={{
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            WebkitTouchCallout: 'none'
+                          }}
                         >
                           <CheckIconSmall />
                           <span className="text-sm">{item.name}</span>
@@ -1605,7 +1874,8 @@ Transaction Fee (Gas):
           }
         />
       )}
-    </ChallengeTemplate>
+      </ChallengeTemplate>
+    </>
   );
 };
 

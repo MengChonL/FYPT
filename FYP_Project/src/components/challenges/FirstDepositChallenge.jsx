@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { useGame } from '../../context/GameContext';
+import { useAttemptTracking } from '../../hooks/useAttemptTracking';
 import BrowserFrame from './BrowserFrame';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
@@ -15,11 +18,13 @@ import BNBIcon from '../../assets/BNB.png';
 import USDTIcon from '../../assets/USDT.png';
 import SolanaIcon from '../../assets/Solana.png';
 
-const FirstDepositChallenge = ({ config }) => {
+const FirstDepositChallenge = ({ config, language: propLanguage }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [language, setLanguage] = useState('chinese');
-  const [view, setView] = useState('map');
+  const { getPhaseByScenarioCode, completeScenarioAndUnlockNext } = useGame();
+  const { startTracking, recordStageError } = useAttemptTracking(config?.id);
+  const [language, setLanguage] = useState(propLanguage || 'chinese');
+  const [view, setView] = useState('intro');
   const [activeTab, setActiveTab] = useState('discord');
   const [discordView, setDiscordView] = useState('chat');      // 'chat' | 'richbank'
   const [metamaskView, setMetamaskView] = useState('wallet');  // 'wallet' | 'topup' | 'buy'
@@ -29,6 +34,7 @@ const FirstDepositChallenge = ({ config }) => {
   const [showQuote, setShowQuote] = useState(false);
   const [cardNumber, setCardNumber] = useState('');
   const [resultType, setResultType] = useState(null); // 'richbank' | 'metamask'
+  const [hasAnyStageError, setHasAnyStageError] = useState(false); // Track if any error occurred
   
   const t = config?.content?.[language];
   const introData = config?.intro?.[language];
@@ -141,8 +147,10 @@ const FirstDepositChallenge = ({ config }) => {
 
   const currentContent = content[language] || content.chinese;
 
+  // 初始化重置
   useEffect(() => {
-    setView('map');
+    // 直接顯示 intro 頁面（PhaseRoadmap 選擇已移至 GamePage）
+    setView('intro');
     setShowResult(false);
     setActiveTab('discord');
     setDiscordView('chat');
@@ -151,10 +159,13 @@ const FirstDepositChallenge = ({ config }) => {
     setShowQuote(false);
     setCardNumber('');
     setResultType(null);
+    setHasAnyStageError(false);
   }, [location.pathname]);
 
   const handleStartLevel = (stepId) => {
-    if (stepId === 'deposit') setView('intro');
+    if (stepId === 'deposit') {
+      setView('intro');
+    }
   };
 
   // 進入充值代幣選擇介面
@@ -173,24 +184,48 @@ const FirstDepositChallenge = ({ config }) => {
   };
 
   // RichBank 轉帳完成（錯誤示範）
-  const handleRichBankTransfer = () => {
+  const handleRichBankTransfer = async () => {
     setIsCorrect(false);
     setResultType('richbank');
     setShowResult(true);
+    
+    // 記錄失敗：用戶使用了不安全的入金方式（不結束 attempt）
+    if (config?.id) {
+      setHasAnyStageError(true);
+      await recordStageError({
+        error_type: 'wrong_deposit_method',
+        user_selected: 'richbank',
+        correct_answer: 'metamask',
+        description: language === 'chinese' 
+          ? '用戶使用了 RichBank 不安全的入金方式' 
+          : 'User used RichBank insecure deposit method'
+      });
+    }
   };
 
   // 处理下一关导航
-  const handleNextLevel = () => {
+  const handleNextLevel = async () => {
+    // 記錄答題結果：如果有錯誤，is_success 為 false，但仍然更新進度
+    if (config?.id) {
+      const finalSuccess = isCorrect && !hasAnyStageError;
+      // 即使失敗也要更新進度到下一關
+      const errorDetails = finalSuccess ? null : { force_progress_update: true };
+      await completeScenarioAndUnlockNext(config.id, config.nextLevel, finalSuccess, errorDetails);
+    }
+    
     if (config?.nextLevel) {
-      const phase = config.nextLevel.split('-')[0];
-      navigate(`/challenge/${phase}/${config.nextLevel}`);
+      const phase = getPhaseByScenarioCode(config.nextLevel);
+      if (phase) {
+        navigate(`/challenge/${phase}/${config.nextLevel}`, { state: { skipToIntro: true } });
+      } else {
+        console.error('Cannot find phase for scenario:', config.nextLevel);
+      }
     }
   };
 
   const roadmapSteps = [
     { id: 'search', iconType: 'search', status: 'completed', title: { chinese: '下載錢包', english: 'Download Wallet' } },
     { id: 'create', iconType: 'create', status: 'completed', title: { chinese: '創建錢包', english: 'Create Wallet' } },
-    // 本關卡聚焦於「首次入金」，因此將該節點標記為 current，後續「轉賬」維持鎖定狀態
     { id: 'deposit', iconType: 'deposit', status: 'current', title: { chinese: '首次入金', english: 'First Deposit' } },
     { id: 'transfer', iconType: 'transfer', status: 'locked', title: { chinese: '轉賬', english: 'Transfer' } }
   ];
@@ -227,7 +262,6 @@ const FirstDepositChallenge = ({ config }) => {
 
     return (
       <div className="flex items-end h-full px-2 gap-1 bg-[#dfe1e5] pt-1 border-b border-[#dfe1e5] relative z-50">
-        {/* 簡單的返回 / 前進按鈕，控制目前分頁的子頁面 */}
         <div className="flex items-center gap-1 mr-2 mb-1">
           <button
             type="button"
@@ -352,9 +386,17 @@ const FirstDepositChallenge = ({ config }) => {
                     <p className="text-sm leading-relaxed mb-2">
                       {currentContent.discord.groupMessage}
                     </p>
-                    <p className="text-[#00a8fc] font-bold hover:underline cursor-pointer break-all">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('metamask');
+                        setMetamaskView('wallet');
+                      }}
+                      className="text-[#00a8fc] font-bold hover:underline cursor-pointer break-all text-left focus:outline-none"
+                      style={{ backgroundColor: 'transparent', border: 'none', padding: 0 }}
+                    >
                       https://metamask.io
-                    </p>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -417,7 +459,7 @@ const FirstDepositChallenge = ({ config }) => {
       );
       }
 
-      // Discord 中點擊 richbank 連結後的轉帳頁面（先留空白介面）
+      // Discord 中點擊 richbank 連結後的轉帳頁面
       if (discordView === 'richbank') {
         return (
           <div className="w-full h-full flex items-center justify-center bg-[#f3f4f6] text-gray-800">
@@ -472,6 +514,7 @@ const FirstDepositChallenge = ({ config }) => {
                 </label>
                 <input
                   type="text"
+                  defaultValue="009871232331"
                   className="w-full border border-gray-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder={
                     language === 'chinese'
@@ -853,7 +896,10 @@ const FirstDepositChallenge = ({ config }) => {
           </div>
         </div>
         <button 
-          onClick={() => setView('wallet')}
+          onClick={async () => {
+            await startTracking(); // 開始計時
+            setView('wallet');
+          }}
           className="w-full py-4 bg-cyan-500 hover:bg-cyan-400 text-black font-black text-xl rounded-xl transition-all shadow-[0_0_20px_rgba(34,211,238,0.4)] transform hover:scale-[1.02]"
         >
           {introData?.btn || currentContent.intro.btn}
@@ -865,7 +911,7 @@ const FirstDepositChallenge = ({ config }) => {
   const renderWalletPage = () => (
     <div className="w-full bg-white" style={{ fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       {/* Header */}
-      <div className="sticky top-0 bg-white z-20 border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+      <div className="sticky top-0 bg-white z-20 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-base font-semibold text-gray-900">{currentContent.wallet.account}</span>
           <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -898,13 +944,13 @@ const FirstDepositChallenge = ({ config }) => {
       </div>
 
       {/* Balance Section */}
-      <div className="px-4 py-6">
+      <div className="px-6 py-8">
         <div className="text-4xl font-bold text-gray-900 mb-1">{currentContent.wallet.balance}</div>
         <div className="text-sm text-gray-600">{currentContent.wallet.balanceChange}</div>
       </div>
 
       {/* Action Buttons */}
-      <div className="px-4 pb-6 grid grid-cols-4 gap-4">
+      <div className="px-6 pb-8 grid grid-cols-4 gap-4">
         {/* Buy Button */}
         <button className="flex flex-col items-center gap-2 p-4 rounded-xl hover:bg-gray-50 transition-colors">
           <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -947,7 +993,7 @@ const FirstDepositChallenge = ({ config }) => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="px-4 border-b border-gray-200 flex gap-6">
+      <div className="px-6 border-b border-gray-200 flex gap-6">
         <div className="pb-3 border-b-2 border-purple-600">
           <span className="text-sm font-semibold text-purple-600">{currentContent.wallet.tokens}</span>
         </div>
@@ -963,7 +1009,7 @@ const FirstDepositChallenge = ({ config }) => {
       </div>
 
       {/* Asset Filter */}
-      <div className="px-4 py-4 flex items-center justify-between">
+      <div className="px-6 py-5 flex items-center justify-between">
         <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
           <img src={EthereumIcon} alt="Ethereum" className="w-5 h-5" />
           <span className="text-sm font-medium text-gray-900">{currentContent.wallet.ethereum}</span>
@@ -986,7 +1032,7 @@ const FirstDepositChallenge = ({ config }) => {
       </div>
 
       {/* Ethereum Asset */}
-      <div className="px-4 py-3 flex items-center justify-between border-b border-gray-100">
+      <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
             <img src={EthereumIcon} alt="Ethereum" className="w-6 h-6" />
@@ -1004,12 +1050,12 @@ const FirstDepositChallenge = ({ config }) => {
       </div>
 
       {/* Separator */}
-      <div className="px-4 pt-0 pb-0">
+      <div className="px-6 pt-0 pb-0">
         <div className="border-t border-gray-300"></div>
       </div>
 
       {/* Top Up Section - 放在卡片外，独立容器 */}
-      <div className="w-full px-4 pb-8 text-center" style={{ paddingTop: '3rem' }}>
+      <div className="w-full px-6 pb-8 text-center" style={{ paddingTop: '3rem' }}>
         <p className="text-gray-600 mb-8">{currentContent.wallet.topUpMessage}</p>
         <button
           onClick={handleOpenTopUp}
@@ -1047,8 +1093,8 @@ const FirstDepositChallenge = ({ config }) => {
         </div>
       )}
       {view === 'wallet' && !showResult && (
-        <div className="w-full h-full flex items-center justify-center p-4 bg-gray-900">
-            <div className="w-full max-w-7xl flex flex-col md:flex-row gap-6 items-stretch">
+        <div className="w-full h-full flex items-center justify-center p-8 bg-gray-900">
+            <div className="w-full max-w-7xl flex flex-col md:flex-row gap-8 items-stretch">
             <div className="flex-1">
               <BrowserFrame 
                 url={
@@ -1059,8 +1105,9 @@ const FirstDepositChallenge = ({ config }) => {
                       : ""
                 }
                 tabs={renderTabs()}
-                className="w-full h-[85vh] shadow-2xl rounded-xl overflow-hidden bg-white" 
+                className="w-full h-[90vh] shadow-2xl rounded-xl overflow-hidden bg-white" 
                 showControls={true}
+                contentPadding={true}
               >
                 {renderBrowserContent()}
               </BrowserFrame>
@@ -1184,4 +1231,3 @@ const FirstDepositChallenge = ({ config }) => {
 };
 
 export default FirstDepositChallenge;
-
