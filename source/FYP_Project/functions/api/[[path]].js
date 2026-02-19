@@ -9,6 +9,7 @@ import { verifyToken, verifyAdminPassword } from '../utils/auth.js'; // 引入�
 
 // ===== 跨域 (CORS) 設定 =====
 const ALLOWED_ORIGINS = [
+  'https://d168758a.fypt-2re.pages.dev',
   'https://fyp-dadab.pages.dev',
   'https://fyp-admin.pages.dev',
   'http://localhost:5173',
