@@ -55,7 +55,14 @@ export const getPhases = async (env) => {
 export const getAllScenarios = async (env) => {
   try {
     const { supabaseAdmin } = getSupabase(env);
-    const { data, error } = await supabaseAdmin.from('scenarios').select('*, phases(title_zh, title_en)').order('display_order');
+    const { data, error } = await supabaseAdmin
+      .from('scenarios')
+      .select(`
+        *,
+        scenario_types (type_code, name_zh, name_en),
+        phases (phase_code, title_zh, title_en)
+      `)
+      .order('display_order');
     if (error) {
       console.error('[getAllScenarios] Supabase error:', error);
       throw new Error(`Failed to fetch scenarios: ${error.message || JSON.stringify(error)}`);
@@ -69,7 +76,15 @@ export const getAllScenarios = async (env) => {
 
 export const getScenario = async (code, env) => {
   const { supabase } = getSupabase(env);
-  const { data, error } = await supabase.from('scenarios').select('*, phases(*)').eq('scenario_code', code).single();
+  const { data, error } = await supabase
+    .from('scenarios')
+    .select(`
+      *,
+      scenario_types (type_code, name_zh, name_en, component_name),
+      phases (phase_code, title_zh, title_en)
+    `)
+    .eq('scenario_code', code)
+    .single();
   if (error) throw error;
   return data;
 };
