@@ -38,17 +38,33 @@ export const getLocalTimestamp = () => {
 // ===== 1. 遊戲與場景相關 (GET) =====
 
 export const getPhases = async (env) => {
-  const { supabase } = getSupabase(env);
-  const { data, error } = await supabase.from('phases').select('*').eq('is_active', true).order('display_order');
-  if (error) throw error;
-  return data;
+  try {
+    const { supabase } = getSupabase(env);
+    const { data, error } = await supabase.from('phases').select('*').eq('is_active', true).order('display_order');
+    if (error) {
+      console.error('[getPhases] Supabase error:', error);
+      throw new Error(`Failed to fetch phases: ${error.message || JSON.stringify(error)}`);
+    }
+    return data || [];
+  } catch (err) {
+    console.error('[getPhases] Error:', err);
+    throw err;
+  }
 };
 
 export const getAllScenarios = async (env) => {
-  const { supabaseAdmin } = getSupabase(env);
-  const { data, error } = await supabaseAdmin.from('scenarios').select('*, phases(title_zh, title_en)').order('display_order');
-  if (error) throw error;
-  return data;
+  try {
+    const { supabaseAdmin } = getSupabase(env);
+    const { data, error } = await supabaseAdmin.from('scenarios').select('*, phases(title_zh, title_en)').order('display_order');
+    if (error) {
+      console.error('[getAllScenarios] Supabase error:', error);
+      throw new Error(`Failed to fetch scenarios: ${error.message || JSON.stringify(error)}`);
+    }
+    return data || [];
+  } catch (err) {
+    console.error('[getAllScenarios] Error:', err);
+    throw err;
+  }
 };
 
 export const getScenario = async (code, env) => {
@@ -75,10 +91,19 @@ export const getScenarioTypes = async (env) => {
 // ===== 2. 用戶相關 =====
 
 export const checkUsernameExists = async (username, env) => {
-  const { supabaseAdmin } = getSupabase(env);
-  const { data, error } = await supabaseAdmin.from('users').select('user_id').eq('username', username).single();
-  if (error && error.code !== 'PGRST116') throw error;
-  return !!data;
+  try {
+    const { supabaseAdmin } = getSupabase(env);
+    const { data, error } = await supabaseAdmin.from('users').select('user_id').eq('username', username).single();
+    // PGRST116 是 "not found" 錯誤，這是正常的（用戶名不存在）
+    if (error && error.code !== 'PGRST116') {
+      console.error('[checkUsernameExists] Supabase error:', error);
+      throw new Error(`Failed to check username: ${error.message || JSON.stringify(error)}`);
+    }
+    return !!data;
+  } catch (err) {
+    console.error('[checkUsernameExists] Error:', err);
+    throw err;
+  }
 };
 
 export const getUserByUsername = async (username, env) => {

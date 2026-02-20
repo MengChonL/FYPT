@@ -18,7 +18,11 @@ const ALLOWED_ORIGINS = [
 
 function getCorsHeaders(request) {
   const origin = request.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  // 支援所有 Cloudflare Pages 域名（*.pages.dev）
+  const isCloudflarePages = origin.includes('.pages.dev');
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) || isCloudflarePages 
+    ? origin 
+    : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -60,9 +64,27 @@ export async function onRequest(context) {
     DEEPSEEK_API_KEY: env.DEEPSEEK_API_KEY,
   };
 
+  // 檢查必要的環境變數（健康檢查除外）
+  const checkEnvVars = () => {
+    if (!envVars.SUPABASE_URL || !envVars.SUPABASE_ANON_KEY) {
+      throw new Error('Missing Supabase configuration: SUPABASE_URL or SUPABASE_ANON_KEY not set');
+    }
+  };
+
   try {
     // 健康檢查
-    if (pathname === '/api/health') return jsonResponse({ status: 'ok' }, 200, request);
+    if (pathname === '/api/health') {
+      // 健康檢查時也檢查環境變數狀態
+      const envStatus = {
+        SUPABASE_URL: !!envVars.SUPABASE_URL,
+        SUPABASE_ANON_KEY: !!envVars.SUPABASE_ANON_KEY,
+        SUPABASE_SERVICE_ROLE_KEY: !!envVars.SUPABASE_SERVICE_ROLE_KEY,
+      };
+      return jsonResponse({ status: 'ok', env: envStatus }, 200, request);
+    }
+
+    // 其他 API 需要檢查環境變數
+    checkEnvVars();
 
     // 2. Admin 權限驗證 (排除登入接口)
     const isAdminRoute = pathname.startsWith('/api/admin/') && pathname !== '/api/admin/login';
@@ -197,7 +219,27 @@ export async function onRequest(context) {
     return errorResponse('Endpoint not found', 404, request);
 
   } catch (err) {
-    console.error(`[API ERROR] ${pathname}:`, err);
-    return errorResponse(err.message || 'Server error', 500, request);
+    // 記錄詳細錯誤資訊
+    const errorDetails = {
+      pathname,
+      method,
+      message: err.message,
+      stack: err.stack,
+      name: err.name,
+    };
+    console.error(`[API ERROR] ${pathname}:`, JSON.stringify(errorDetails, null, 2));
+    
+    // 如果是 Supabase 相關錯誤，記錄更多資訊
+    if (err.message?.includes('Supabase') || err.message?.includes('Missing')) {
+      console.error('[ENV CHECK]', {
+        hasUrl: !!envVars.SUPABASE_URL,
+        hasAnonKey: !!envVars.SUPABASE_ANON_KEY,
+        hasServiceKey: !!envVars.SUPABASE_SERVICE_ROLE_KEY,
+      });
+    }
+    
+    // 返回錯誤（不暴露敏感資訊）
+    const safeMessage = err.message || 'Server error';
+    return errorResponse(safeMessage, 500, request);
   }
 }
