@@ -83,6 +83,41 @@ export async function onRequest(context) {
       return jsonResponse({ status: 'ok', env: envStatus }, 200, request);
     }
 
+    // 診斷端點 - 測試 Supabase 連線
+    if (pathname === '/api/debug/test-supabase' && method === 'GET') {
+      try {
+        checkEnvVars();
+        // 測試 getPhases 函數
+        const phases = await supabase.getPhases(envVars);
+        return jsonResponse({
+          success: true,
+          message: 'Supabase connection successful',
+          phasesCount: phases?.length || 0,
+          env: {
+            hasUrl: !!envVars.SUPABASE_URL,
+            hasAnonKey: !!envVars.SUPABASE_ANON_KEY,
+            urlLength: envVars.SUPABASE_URL?.length || 0,
+            keyLength: envVars.SUPABASE_ANON_KEY?.length || 0,
+          }
+        }, 200, request);
+      } catch (testErr) {
+        return jsonResponse({
+          success: false,
+          error: {
+            message: testErr.message,
+            stack: testErr.stack,
+            name: testErr.name
+          },
+          env: {
+            hasUrl: !!envVars.SUPABASE_URL,
+            hasAnonKey: !!envVars.SUPABASE_ANON_KEY,
+            urlLength: envVars.SUPABASE_URL?.length || 0,
+            keyLength: envVars.SUPABASE_ANON_KEY?.length || 0,
+          }
+        }, 500, request);
+      }
+    }
+
     // 其他 API 需要檢查環境變數
     checkEnvVars();
 
@@ -119,12 +154,17 @@ export async function onRequest(context) {
     // GET /api/users/check/:username － 檢查用戶名是否已存在
     const usernameCheckMatch = pathname.match(/^\/api\/users\/check\/([^/]+)$/);
     if (usernameCheckMatch && method === 'GET') {
-      const rawUsername = usernameCheckMatch[1];
-      const username = decodeURIComponent(rawUsername).trim();
-      if (!username) return errorResponse('Username required', 400, request);
+      try {
+        const rawUsername = usernameCheckMatch[1];
+        const username = decodeURIComponent(rawUsername).trim();
+        if (!username) return errorResponse('Username required', 400, request);
 
-      const exists = await supabase.checkUsernameExists(username, envVars);
-      return jsonResponse({ exists }, 200, request);
+        const exists = await supabase.checkUsernameExists(username, envVars);
+        return jsonResponse({ exists }, 200, request);
+      } catch (err) {
+        console.error('[GET /api/users/check/:username] Error:', err);
+        throw err; // 重新拋出，讓外層 catch 處理
+      }
     }
 
     // POST /api/users － 建立新用戶
@@ -149,8 +189,25 @@ export async function onRequest(context) {
 
     // ===== 遊戲與場景公開 API =====
 
-    if (pathname === '/api/phases' && method === 'GET') return jsonResponse(await supabase.getPhases(envVars), 200, request);
-    if (pathname === '/api/scenarios' && method === 'GET') return jsonResponse(await supabase.getAllScenarios(envVars), 200, request);
+    if (pathname === '/api/phases' && method === 'GET') {
+      try {
+        const phases = await supabase.getPhases(envVars);
+        return jsonResponse(phases, 200, request);
+      } catch (err) {
+        console.error('[GET /api/phases] Error:', err);
+        throw err; // 重新拋出，讓外層 catch 處理
+      }
+    }
+    
+    if (pathname === '/api/scenarios' && method === 'GET') {
+      try {
+        const scenarios = await supabase.getAllScenarios(envVars);
+        return jsonResponse(scenarios, 200, request);
+      } catch (err) {
+        console.error('[GET /api/scenarios] Error:', err);
+        throw err; // 重新拋出，讓外層 catch 處理
+      }
+    }
 
     // ===== 用戶與進度 API =====
 
