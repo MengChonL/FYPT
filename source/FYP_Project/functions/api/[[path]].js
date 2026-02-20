@@ -56,6 +56,20 @@ export async function onRequest(context) {
 
   if (method === 'OPTIONS') return new Response(null, { status: 204, headers: getCorsHeaders(request) });
 
+  // 檢查模組是否正確導入（在 try-catch 外先檢查，避免模組導入失敗）
+  try {
+    if (typeof supabase === 'undefined' || typeof supabase.getPhases !== 'function') {
+      console.error('[MODULE CHECK] supabase module not loaded correctly:', {
+        supabase: typeof supabase,
+        hasGetPhases: typeof supabase?.getPhases,
+      });
+      return errorResponse('Server configuration error: Supabase module not loaded', 500, request);
+    }
+  } catch (moduleErr) {
+    console.error('[MODULE IMPORT ERROR]', moduleErr);
+    return errorResponse('Server configuration error: Failed to import modules', 500, request);
+  }
+
   // 1. 封裝環境變數：確保 Supabase 工具能同時在前後端運行
   const envVars = {
     SUPABASE_URL: env.SUPABASE_URL,
@@ -67,20 +81,38 @@ export async function onRequest(context) {
   // 檢查必要的環境變數（健康檢查除外）
   const checkEnvVars = () => {
     if (!envVars.SUPABASE_URL || !envVars.SUPABASE_ANON_KEY) {
-      throw new Error('Missing Supabase configuration: SUPABASE_URL or SUPABASE_ANON_KEY not set');
+      const errorMsg = `Missing Supabase configuration: SUPABASE_URL=${!!envVars.SUPABASE_URL}, SUPABASE_ANON_KEY=${!!envVars.SUPABASE_ANON_KEY}`;
+      console.error('[ENV CHECK FAILED]', errorMsg);
+      throw new Error(errorMsg);
     }
   };
 
   try {
     // 健康檢查
     if (pathname === '/api/health') {
-      // 健康檢查時也檢查環境變數狀態
+      // 健康檢查時也檢查環境變數狀態和模組狀態
       const envStatus = {
         SUPABASE_URL: !!envVars.SUPABASE_URL,
         SUPABASE_ANON_KEY: !!envVars.SUPABASE_ANON_KEY,
         SUPABASE_SERVICE_ROLE_KEY: !!envVars.SUPABASE_SERVICE_ROLE_KEY,
+        urlLength: envVars.SUPABASE_URL?.length || 0,
+        anonKeyLength: envVars.SUPABASE_ANON_KEY?.length || 0,
       };
-      return jsonResponse({ status: 'ok', env: envStatus }, 200, request);
+      
+      // 檢查模組
+      const moduleStatus = {
+        supabaseModuleLoaded: typeof supabase !== 'undefined',
+        hasGetPhases: typeof supabase?.getPhases === 'function',
+        hasGetAllScenarios: typeof supabase?.getAllScenarios === 'function',
+        hasCheckUsernameExists: typeof supabase?.checkUsernameExists === 'function',
+      };
+      
+      return jsonResponse({ 
+        status: 'ok', 
+        env: envStatus,
+        modules: moduleStatus,
+        timestamp: new Date().toISOString()
+      }, 200, request);
     }
 
     // 診斷端點 - 測試 Supabase 連線
@@ -283,19 +315,34 @@ export async function onRequest(context) {
       message: err.message,
       stack: err.stack,
       name: err.name,
+      // 記錄環境變數狀態（不記錄實際值）
+      env: {
+        hasUrl: !!envVars.SUPABASE_URL,
+        hasAnonKey: !!envVars.SUPABASE_ANON_KEY,
+        hasServiceKey: !!envVars.SUPABASE_SERVICE_ROLE_KEY,
+        urlLength: envVars.SUPABASE_URL?.length || 0,
+        anonKeyLength: envVars.SUPABASE_ANON_KEY?.length || 0,
+      },
+      // 記錄模組狀態
+      modules: {
+        supabaseModuleLoaded: typeof supabase !== 'undefined',
+        hasGetPhases: typeof supabase?.getPhases === 'function',
+      },
     };
     console.error(`[API ERROR] ${pathname}:`, JSON.stringify(errorDetails, null, 2));
     
     // 如果是 Supabase 相關錯誤，記錄更多資訊
-    if (err.message?.includes('Supabase') || err.message?.includes('Missing')) {
-      console.error('[ENV CHECK]', {
+    if (err.message?.includes('Supabase') || err.message?.includes('Missing') || err.message?.includes('configuration')) {
+      console.error('[ENV CHECK DETAIL]', {
         hasUrl: !!envVars.SUPABASE_URL,
         hasAnonKey: !!envVars.SUPABASE_ANON_KEY,
         hasServiceKey: !!envVars.SUPABASE_SERVICE_ROLE_KEY,
+        urlPrefix: envVars.SUPABASE_URL?.substring(0, 20) || 'N/A',
+        anonKeyPrefix: envVars.SUPABASE_ANON_KEY?.substring(0, 20) || 'N/A',
       });
     }
     
-    // 返回錯誤（不暴露敏感資訊）
+    // 返回錯誤（不暴露敏感資訊，但在開發環境可以返回更多資訊）
     const safeMessage = err.message || 'Server error';
     return errorResponse(safeMessage, 500, request);
   }
