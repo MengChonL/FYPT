@@ -76,7 +76,7 @@ export async function onRequest(context) {
       }
     }
 
-    // ===== 認證相關 API =====
+    // ===== 認證與用戶相關 API =====
 
     // POST /api/admin/login
     if (pathname === '/api/admin/login' && method === 'POST') {
@@ -90,6 +90,37 @@ export async function onRequest(context) {
     if (pathname === '/api/users/login' && method === 'POST') {
       const { username } = await parseBody(request) || {};
       const user = await supabase.getUserByUsername(username?.trim(), envVars);
+      if (!user) return errorResponse('User not found', 404, request);
+      return jsonResponse(user, 200, request);
+    }
+
+    // GET /api/users/check/:username － 檢查用戶名是否已存在
+    const usernameCheckMatch = pathname.match(/^\/api\/users\/check\/([^/]+)$/);
+    if (usernameCheckMatch && method === 'GET') {
+      const rawUsername = usernameCheckMatch[1];
+      const username = decodeURIComponent(rawUsername).trim();
+      if (!username) return errorResponse('Username required', 400, request);
+
+      const exists = await supabase.checkUsernameExists(username, envVars);
+      return jsonResponse({ exists }, 200, request);
+    }
+
+    // POST /api/users － 建立新用戶
+    if (pathname === '/api/users' && method === 'POST') {
+      const { username, language, consent = true, hasExperience = false } = await parseBody(request) || {};
+      if (!username || !language) return errorResponse('Invalid payload', 400, request);
+
+      const user = await supabase.createUser(username.trim(), language, consent, hasExperience, envVars);
+      return jsonResponse(user, 201, request);
+    }
+
+    // GET /api/users/:userId － 取得用戶資料
+    const userMatch = pathname.match(/^\/api\/users\/([^/]+)$/);
+    if (userMatch && method === 'GET') {
+      const userId = userMatch[1];
+      if (!isValidUUID(userId)) return errorResponse('Invalid ID', 400, request);
+
+      const user = await supabase.getUser(userId, envVars);
       if (!user) return errorResponse('User not found', 404, request);
       return jsonResponse(user, 200, request);
     }
