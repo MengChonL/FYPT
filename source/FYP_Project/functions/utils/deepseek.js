@@ -44,14 +44,13 @@ export const generateAIAnalysis = async (reportData, env) => {
   };
 
   // 1. 構建數據文本 (維持原本邏輯)
-  const performanceText = (reportData.performance_summary || []).map(ps => {
-    const name = SCENARIO_NAMES[ps.scenario_code] || { zh: ps.scenario_code, en: ps.scenario_code };
-    const avgTimeSec = Math.round((ps.avg_time_ms || 0) / 1000);
-    return {
-      zh: `- ${name.zh}：${ps.final_success ? '已通過' : '未通過'}，平均用時 ${avgTimeSec} 秒`,
-      en: `- ${name.en}: ${ps.final_success ? 'Passed' : 'Failed'}, avg ${avgTimeSec}s`,
-    };
-  }).join('\n');
+  const performanceText = (reportData.performance_summary || [])
+    .map(ps => {
+      const name = SCENARIO_NAMES[ps.scenario_code] || { zh: ps.scenario_code, en: ps.scenario_code };
+      const avgTimeSec = Math.round((ps.avg_time_ms || 0) / 1000);
+      return `- ${name.zh}：${ps.final_success ? '已通過' : '未通過'}，平均用時 ${avgTimeSec} 秒`;
+    })
+    .join('\n');
 
   // 2. 構建 Prompt
   const prompt = `

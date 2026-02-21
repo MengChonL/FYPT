@@ -150,6 +150,57 @@ export async function onRequest(context) {
       }
     }
 
+    // 診斷端點 - 測試 DeepSeek API
+    if (pathname === '/api/debug/test-deepseek' && method === 'GET') {
+      try {
+        const { generateAIAnalysis } = await import('../utils/deepseek.js');
+        
+        // 創建一個測試報告數據
+        const testReport = {
+          performance_summary: [
+            { scenario_code: 'phase1-1', final_success: true, avg_time_ms: 30000 },
+            { scenario_code: 'phase1-2', final_success: false, avg_time_ms: 45000 }
+          ],
+          overall_success_rate: 50
+        };
+
+        const aiResult = await generateAIAnalysis(testReport, envVars);
+        
+        return jsonResponse({
+          success: true,
+          message: 'DeepSeek API connection successful',
+          hasApiKey: !!envVars.DEEPSEEK_API_KEY,
+          apiKeyLength: envVars.DEEPSEEK_API_KEY?.length || 0,
+          apiKeyPrefix: envVars.DEEPSEEK_API_KEY?.substring(0, 10) || 'N/A',
+          testResult: {
+            hasSummary: !!(aiResult?.summary_zh || aiResult?.summary_en),
+            hasRecommendations: !!(aiResult?.recommendations_zh || aiResult?.recommendations_en),
+            hasError: !!aiResult?.ai_error,
+            errorMessage: aiResult?.ai_error || null
+          },
+          sampleResponse: {
+            summary_zh: aiResult?.summary_zh?.substring(0, 100) || 'N/A',
+            summary_en: aiResult?.summary_en?.substring(0, 100) || 'N/A',
+            recommendations_count: aiResult?.recommendations_zh?.length || aiResult?.recommendations_en?.length || 0
+          }
+        }, 200, request);
+      } catch (testErr) {
+        return jsonResponse({
+          success: false,
+          error: {
+            message: testErr.message,
+            stack: testErr.stack,
+            name: testErr.name
+          },
+          env: {
+            hasApiKey: !!envVars.DEEPSEEK_API_KEY,
+            apiKeyLength: envVars.DEEPSEEK_API_KEY?.length || 0,
+            apiKeyPrefix: envVars.DEEPSEEK_API_KEY?.substring(0, 10) || 'N/A',
+          }
+        }, 500, request);
+      }
+    }
+
     // 其他 API 需要檢查環境變數
     checkEnvVars();
 
@@ -330,20 +381,57 @@ export async function onRequest(context) {
 
       try {
         // 第一步：生成基礎數據報告 (不可失敗)
-        const report = await supabase.generateFinalReport(userId, envVars);
+        let report;
+        try {
+          report = await supabase.generateFinalReport(userId, envVars);
+          console.log('[report/generate] Base report generated successfully');
+        } catch (reportErr) {
+          console.error('[report/generate] Failed to generate base report:', reportErr);
+          throw new Error(`Failed to generate base report: ${reportErr.message || 'Unknown error'}`);
+        }
 
         // 第二步：異步生成 AI 分析，但不應阻塞主要報告回傳
         let aiResult = null;
         try {
+          console.log('[report/generate] Starting AI analysis...');
           aiResult = await generateAIAnalysis(report, envVars);
-          if (aiResult) await supabase.updateReportAIAnalysis(userId, aiResult, envVars);
-        } catch (e) {
-          console.error("AI Generation failed, returning base report:", e.message);
+          console.log('[report/generate] AI analysis completed:', {
+            hasSummary: !!(aiResult?.summary_zh || aiResult?.summary_en),
+            hasRecommendations: !!(aiResult?.recommendations_zh || aiResult?.recommendations_en),
+            hasError: !!aiResult?.ai_error
+          });
+          
+          if (aiResult && !aiResult.ai_error) {
+            await supabase.updateReportAIAnalysis(userId, aiResult, envVars);
+            console.log('[report/generate] AI analysis saved to database');
+          } else if (aiResult?.ai_error) {
+            console.warn('[report/generate] AI analysis returned with error:', aiResult.ai_error);
+          }
+        } catch (aiErr) {
+          console.error('[report/generate] AI Generation failed:', {
+            message: aiErr.message,
+            stack: aiErr.stack,
+            name: aiErr.name
+          });
+          // AI 失敗不應影響報告回傳，使用 fallback
+          aiResult = {
+            summary_zh: 'AI 分析暫時不可用，請參考上方統計數據。',
+            summary_en: 'AI analysis is temporarily unavailable, please refer to the statistics above.',
+            recommendations_zh: ['建議重新練習失敗頻率較高的關卡'],
+            recommendations_en: ['Re-run scenarios with high failure rates'],
+            risk_profile: { overall_risk_level: 'medium' },
+            ai_error: aiErr.message
+          };
         }
 
         return jsonResponse({ ...report, ai_analysis: aiResult }, 200, request);
       } catch (err) {
-        console.error('[POST /api/users/:userId/report/generate] Error:', err);
+        console.error('[POST /api/users/:userId/report/generate] Error:', {
+          message: err.message,
+          stack: err.stack,
+          name: err.name,
+          userId
+        });
         return errorResponse(`Failed to generate report: ${err.message || 'Unknown error'}`, 500, request);
       }
     }
