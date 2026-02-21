@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getUsers, searchUsers, getUserAttempts, deleteUser } from '../api';
+import { getUsers, searchUsers, deleteUser } from '../api';
 import DataTable from '../components/DataTable';
 
 const Users = ({ language }) => {
@@ -7,10 +7,8 @@ const Users = ({ language }) => {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState(null);
-  const [userDetails, setUserDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [detailsLoading, setDetailsLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const debounceTimer = useRef(null);
 
@@ -70,20 +68,8 @@ const Users = ({ language }) => {
     }
   };
 
-  const handleUserClick = async (user) => {
+  const handleUserClick = (user) => {
     setSelectedUser(user);
-    setDetailsLoading(true);
-    try {
-      const attemptsRes = await getUserAttempts(user.user_id);
-      setUserDetails({
-        attempts: attemptsRes.data || []
-      });
-    } catch (error) {
-      console.error('Failed to fetch user details:', error);
-      setUserDetails({ attempts: [] });
-    } finally {
-      setDetailsLoading(false);
-    }
   };
 
   const handleDeleteUser = async () => {
@@ -97,7 +83,6 @@ const Users = ({ language }) => {
       await deleteUser(selectedUser.user_id);
       setUsers(prev => prev.filter(u => u.user_id !== selectedUser.user_id));
       setSelectedUser(null);
-      setUserDetails(null);
     } catch (error) {
       console.error('Failed to delete user:', error);
       alert(isZh ? '刪除失敗：' + error.message : 'Delete failed: ' + error.message);
@@ -147,10 +132,6 @@ const Users = ({ language }) => {
               </button>
             </div>
             
-            {detailsLoading ? (
-              <div className="loading">{isZh ? '載入詳情中...' : 'Loading details...'}</div>
-            ) : (
-              <>
                 {/* User Info Summary */}
                 <div className="detail-section user-info-grid">
                   <h4>👤 {isZh ? '基本資料' : 'User Info'}</h4>
@@ -177,26 +158,6 @@ const Users = ({ language }) => {
                     </div>
                   </div>
                 </div>
-
-                {/* Attempts Section */}
-                <div className="detail-section">
-                  <h4>🎯 {isZh ? '嘗試記錄' : 'Attempts'} ({userDetails?.attempts?.length || 0})</h4>
-                  {userDetails?.attempts?.length > 0 ? (
-                    <ul>
-                      {userDetails.attempts.slice(0, 20).map((a, i) => (
-                        <li key={i}>
-                          {(isZh ? a.scenarios?.title_zh : a.scenarios?.title_en) || a.scenario_id}: 
-                          {a.is_success ? ' ✅' : ' ❌'} 
-                          ({a.duration_ms ? `${(a.duration_ms / 1000).toFixed(1)}s` : 'N/A'})
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p>{isZh ? '尚無嘗試記錄' : 'No attempts yet'}</p>
-                  )}
-                </div>
-              </>
-            )}
           </div>
         )}
       </div>
