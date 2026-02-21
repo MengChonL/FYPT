@@ -53,28 +53,75 @@ export const generateAIAnalysis = async (reportData, env) => {
     .join('\n');
 
   // 2. 構建 Prompt
-  const prompt = `
-你是一位 Web3 安全專家。請分析以下用戶訓練數據並輸出純 JSON 格式報告。
-${performanceText}
-(其餘數據: 成功率 ${reportData.overall_success_rate}%)
+  const prompt = `你是一位 Web3 安全專家。請分析以下用戶訓練數據並輸出純 JSON 格式報告。
 
-請嚴格輸出包含 summary_zh, summary_en, recommendations_zh, recommendations_en 的 JSON 物件。
-`;
+訓練數據：
+${performanceText}
+整體成功率：${reportData.overall_success_rate}%
+
+請輸出以下格式的 JSON 物件（必須是有效的 JSON，recommendations 必須是字串陣列）：
+{
+  "summary_zh": "繁體中文摘要（100-200字）",
+  "summary_en": "English summary (100-200 words)",
+  "recommendations_zh": ["建議1", "建議2", "建議3", "建議4"],
+  "recommendations_en": ["Recommendation 1", "Recommendation 2", "Recommendation 3", "Recommendation 4"]
+}
+
+重要：recommendations_zh 和 recommendations_en 必須是字串陣列，每個建議不超過50字。`;
 
   try {
     const completion = await client.chat.completions.create({
       model: 'deepseek-chat',
       messages: [
-        { role: 'system', content: '你是一位專業的 Web3 安全分析師，請嚴格輸出繁體中文和英文雙語 JSON。' },
+        { 
+          role: 'system', 
+          content: '你是一位專業的 Web3 安全分析師。你必須嚴格按照要求輸出有效的 JSON 格式，確保所有中文字符正確編碼，recommendations 必須是字串陣列格式。' 
+        },
         { role: 'user', content: prompt }
       ],
       temperature: 0.7,
       response_format: { type: 'json_object' },
     });
 
-    return JSON.parse(completion.choices[0].message.content);
+    const rawContent = completion.choices[0].message.content;
+    console.log('[generateAIAnalysis] Raw AI response length:', rawContent?.length);
+    
+    let parsed;
+    try {
+      parsed = JSON.parse(rawContent);
+    } catch (parseErr) {
+      console.error('[generateAIAnalysis] JSON parse error:', parseErr.message);
+      console.error('[generateAIAnalysis] Raw content (first 500 chars):', rawContent?.substring(0, 500));
+      return getFallbackReport(`JSON parse error: ${parseErr.message}`);
+    }
+
+    // 驗證和清理返回的數據
+    const result = {
+      summary_zh: parsed.summary_zh || '分析摘要暫時不可用',
+      summary_en: parsed.summary_en || 'Analysis summary temporarily unavailable',
+      recommendations_zh: Array.isArray(parsed.recommendations_zh) 
+        ? parsed.recommendations_zh 
+        : (typeof parsed.recommendations_zh === 'string' ? [parsed.recommendations_zh] : ['建議重新練習失敗頻率較高的關卡']),
+      recommendations_en: Array.isArray(parsed.recommendations_en)
+        ? parsed.recommendations_en
+        : (typeof parsed.recommendations_en === 'string' ? [parsed.recommendations_en] : ['Re-run scenarios with high failure rates']),
+      risk_profile: parsed.risk_profile || { overall_risk_level: 'medium' }
+    };
+
+    console.log('[generateAIAnalysis] Processed result:', {
+      summary_zh_length: result.summary_zh?.length,
+      summary_en_length: result.summary_en?.length,
+      recommendations_zh_count: result.recommendations_zh?.length,
+      recommendations_en_count: result.recommendations_en?.length
+    });
+
+    return result;
   } catch (error) {
-    console.error('❌ DeepSeek AI 請求失敗:', error.message);
+    console.error('❌ DeepSeek AI 請求失敗:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return getFallbackReport(error.message);
   }
 };

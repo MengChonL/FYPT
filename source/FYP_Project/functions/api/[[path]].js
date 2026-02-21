@@ -181,7 +181,11 @@ export async function onRequest(context) {
           sampleResponse: {
             summary_zh: aiResult?.summary_zh?.substring(0, 100) || 'N/A',
             summary_en: aiResult?.summary_en?.substring(0, 100) || 'N/A',
-            recommendations_count: aiResult?.recommendations_zh?.length || aiResult?.recommendations_en?.length || 0
+            recommendations_zh_type: Array.isArray(aiResult?.recommendations_zh) ? 'array' : typeof aiResult?.recommendations_zh,
+            recommendations_en_type: Array.isArray(aiResult?.recommendations_en) ? 'array' : typeof aiResult?.recommendations_en,
+            recommendations_zh_count: Array.isArray(aiResult?.recommendations_zh) ? aiResult.recommendations_zh.length : (typeof aiResult?.recommendations_zh === 'string' ? aiResult.recommendations_zh.length : 0),
+            recommendations_en_count: Array.isArray(aiResult?.recommendations_en) ? aiResult.recommendations_en.length : (typeof aiResult?.recommendations_en === 'string' ? aiResult.recommendations_en.length : 0),
+            recommendations_zh_sample: Array.isArray(aiResult?.recommendations_zh) ? aiResult.recommendations_zh.slice(0, 2) : aiResult?.recommendations_zh?.substring(0, 100)
           }
         }, 200, request);
       } catch (testErr) {
