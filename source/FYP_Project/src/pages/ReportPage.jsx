@@ -436,8 +436,30 @@ const ReportPage = () => {
                   <div className="bg-gray-800/60 backdrop-blur-sm rounded-2xl p-12 border border-gray-700" style={{ marginBottom: '60px' }}>
                     <h3 className="text-2xl font-bold text-cyan-300 mb-8 pixel-font">💡 {t.recommendations}</h3>
                     <ul className="space-y-6">
-                      {(language === 'chinese' ? aiAnalysis.recommendations_zh : aiAnalysis.recommendations_en)?.map(
-                        (rec, idx) => (
+                      {(() => {
+                        const rawRecs =
+                          language === 'chinese'
+                            ? aiAnalysis.recommendations_zh
+                            : aiAnalysis.recommendations_en;
+
+                        // 確保為陣列，避免 AI 回傳單一字串或其他型別時造成 .map 錯誤
+                        const recsArray = Array.isArray(rawRecs)
+                          ? rawRecs
+                          : rawRecs
+                            ? [String(rawRecs)]
+                            : [];
+
+                        if (recsArray.length === 0) {
+                          return (
+                            <li className="bg-gray-900/40 rounded-xl p-7 border border-gray-600/50 text-gray-400 text-lg">
+                              {language === 'chinese'
+                                ? '目前沒有可顯示的具體建議，請先參考上方統計與 AI 摘要內容。'
+                                : 'No specific recommendations are available; please refer to the stats and AI summary above.'}
+                            </li>
+                          );
+                        }
+
+                        return recsArray.map((rec, idx) => (
                           <li key={idx} className="bg-gray-900/40 rounded-xl p-7 border border-gray-600/50">
                             <div className="flex items-start gap-5">
                               <span className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-cyan-500/30 text-cyan-300 rounded-full text-lg font-bold">
@@ -446,8 +468,8 @@ const ReportPage = () => {
                               <span className="text-gray-200 text-xl leading-relaxed pt-1">{rec}</span>
                             </div>
                           </li>
-                        )
-                      )}
+                        ));
+                      })()}
                     </ul>
                   </div>
                 </>

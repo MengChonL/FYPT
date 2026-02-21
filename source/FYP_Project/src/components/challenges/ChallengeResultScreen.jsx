@@ -129,8 +129,9 @@ const ChallengeResultScreen = ({
               <circle cx="90%" cy="15%" r="40" fill="none" stroke="#22c55e" strokeWidth="2" opacity="0.2"/>
               <circle cx="10%" cy="85%" r="50" fill="none" stroke="#10b981" strokeWidth="2" opacity="0.2"/>
               <circle cx="85%" cy="88%" r="50" fill="none" stroke="#22c55e" strokeWidth="2" opacity="0.15"/>
-              <path d="M 10% 30% Q 50% 20%, 90% 25%" fill="none" stroke="#22c55e" strokeWidth="2" opacity="0.3" filter="url(#glowGreen)"/>
-              <path d="M 15% 70% Q 50% 75%, 85% 68%" fill="none" stroke="#10b981" strokeWidth="2" opacity="0.3" filter="url(#glowGreen)"/>
+              {/* 使用數值座標（不帶百分比）避免部分瀏覽器解析錯誤 */}
+              <path d="M 10 30 Q 50 20, 90 25" fill="none" stroke="#22c55e" strokeWidth="2" opacity="0.3" filter="url(#glowGreen)"/>
+              <path d="M 15 70 Q 50 75, 85 68" fill="none" stroke="#10b981" strokeWidth="2" opacity="0.3" filter="url(#glowGreen)"/>
             </>
           ) : (
             // 失败时的红色圆圈标注和跑马灯效果
@@ -145,11 +146,11 @@ const ChallengeResultScreen = ({
               <circle cx="90%" cy="15%" r="40" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.2"/>
               <circle cx="10%" cy="85%" r="50" fill="none" stroke="#dc2626" strokeWidth="2" opacity="0.2"/>
               <circle cx="85%" cy="88%" r="50" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.15"/>
-              {/* 跑马灯路径装饰 */}
-              <path d="M 10% 30% Q 50% 20%, 90% 25%" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.3" filter="url(#glow)">
+              {/* 跑马灯路径装饰 - 使用數值座標避免 d 屬性解析問題 */}
+              <path d="M 10 30 Q 50 20, 90 25" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.3" filter="url(#glow)">
                 <animate attributeName="stroke-dashoffset" from="0" to="20" dur="2s" repeatCount="indefinite"/>
               </path>
-              <path d="M 15% 70% Q 50% 75%, 85% 68%" fill="none" stroke="#dc2626" strokeWidth="2" opacity="0.3" filter="url(#glow)">
+              <path d="M 15 70 Q 50 75, 85 68" fill="none" stroke="#dc2626" strokeWidth="2" opacity="0.3" filter="url(#glow)">
                 <animate attributeName="stroke-dashoffset" from="0" to="20" dur="2.5s" repeatCount="indefinite"/>
               </path>
               {/* 原有的错误项目标注 */}
