@@ -168,21 +168,19 @@ ${errorText.length > 0 ? errorText.map(e => `- ${e.en}`).join('\n') : '- No erro
     // 最多重試 3 次（處理限流）
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
+        // deepseek-reasoner 不支持 temperature、max_tokens、response_format 等參數
         const completion = await client.chat.completions.create({
-          model: 'deepseek-chat',
+          model: 'deepseek-reasoner',
           messages: [
             {
               role: 'system',
-              content: '你是一位專業的 Web3 安全分析師。請嚴格按照要求輸出純 JSON 格式的分析報告，不要包含任何額外文字或 markdown 標記。語言必須嚴格分離：_zh 欄位只能包含繁體中文，_en 欄位只能包含英文，絕對不允許中英夾雜。'
+              content: '你是一位專業的 Web3 安全分析師。請嚴格按照要求輸出純 JSON 格式的分析報告，不要包含任何額外文字或 markdown 標記。語言必須嚴格分離：_zh 欄位只能包含繁體中文，_en 欄位只能包含英文，絕對不允許中英夾雜。只輸出 JSON，不要輸出任何其他文字。'
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          temperature: 0.7,
-          max_tokens: 2048,
-          response_format: { type: 'json_object' },
         });
 
         const text = completion.choices[0].message.content;

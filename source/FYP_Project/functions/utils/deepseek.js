@@ -59,28 +59,40 @@ export const generateAIAnalysis = async (reportData, env) => {
 ${performanceText}
 總體成功率：${reportData.overall_success_rate}%
 
-請輸出以下格式的 JSON 物件（必須是純淨的 JSON，recommendations 必須是字串陣列）：
+請輸出以下格式的 JSON 物件（必須是純淨的 JSON，不要包含任何 markdown 標記）：
 {
   "summary_zh": "繁體中文摘要（100-200字）",
   "summary_en": "English summary (100-200 words)",
   "recommendations_zh": ["建議1", "建議2", "建議3", "建議4"],
-  "recommendations_en": ["Recommendation 1", "Recommendation 2", "Recommendation 3", "Recommendation 4"]
+  "recommendations_en": ["Recommendation 1", "Recommendation 2", "Recommendation 3", "Recommendation 4"],
+  "risk_profile": {
+    "overall_risk_level": "low 或 medium 或 high（根據表現判斷）",
+    "strongest_area_zh": "用戶表現最好的領域（繁體中文）",
+    "strongest_area_en": "User's strongest area (English)",
+    "weakest_area_zh": "用戶表現最差的領域（繁體中文）",
+    "weakest_area_en": "User's weakest area (English)",
+    "vulnerability_summary_zh": "脆弱點分析摘要（繁體中文，50-100字）",
+    "vulnerability_summary_en": "Vulnerability summary (English, 50-100 words)"
+  }
 }
 
-注意：recommendations_zh 和 recommendations_en 必須是字串陣列，每個建議不超過50字。`;
+注意：
+1. recommendations_zh 和 recommendations_en 必須是字串陣列，每個建議不超過50字。
+2. risk_profile 的 overall_risk_level 只能是 low、medium 或 high 其中之一。
+3. 必須根據訓練數據判斷最強和最弱領域，不能留空。
+4. 只輸出純 JSON，不要包含任何額外文字或 markdown 標記。`;
 
   try {
+    // deepseek-reasoner 不支持 temperature、response_format 等參數
     const completion = await client.chat.completions.create({
-      model: 'deepseek-chat',
+      model: 'deepseek-reasoner',
       messages: [
         { 
           role: 'system', 
-          content: '你是一位專業的 Web3 安全分析師。請必須嚴格按照要求輸出純淨的 JSON 格式，確保繁體中文字符正確編碼。recommendations 必須是字串陣列格式。'
+          content: '你是一位專業的 Web3 安全分析師。請必須嚴格按照要求輸出純淨的 JSON 格式，確保繁體中文字符正確編碼。recommendations 必須是字串陣列格式。只輸出 JSON，不要輸出任何其他文字。'
         },
         { role: 'user', content: prompt }
       ],
-      temperature: 0.7,
-      response_format: { type: 'json_object' },
     });
 
     const rawContent = completion.choices[0].message.content;
