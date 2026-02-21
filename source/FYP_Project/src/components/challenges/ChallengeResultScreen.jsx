@@ -145,7 +145,6 @@ const ChallengeResultScreen = ({
               <circle cx="90%" cy="15%" r="40" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.2"/>
               <circle cx="10%" cy="85%" r="50" fill="none" stroke="#dc2626" strokeWidth="2" opacity="0.2"/>
               <circle cx="85%" cy="88%" r="50" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.15"/>
-              {/* 跑马灯路径装饰 */}
               <path d="M 10% 30% Q 50% 20%, 90% 25%" fill="none" stroke="#ef4444" strokeWidth="2" opacity="0.3" filter="url(#glow)">
                 <animate attributeName="stroke-dashoffset" from="0" to="20" dur="2s" repeatCount="indefinite"/>
               </path>

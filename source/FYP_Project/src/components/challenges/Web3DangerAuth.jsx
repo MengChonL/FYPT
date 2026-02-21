@@ -694,6 +694,20 @@ const QuantumFiScam = ({ language: propLanguage, onSuccess, onFail, onGenerateRe
         ? `${t.completionTextPrefix} ${foundTargets.length} / ${TARGETS.length} ${t.completionTextSuffix}`
         : `${t.completionTextPrefix} ${foundTargets.length} / ${TARGETS.length} ${t.completionTextSuffix}`;
 
+    // 获取目标位置描述
+    const getTargetLocation = (targetId) => {
+      const locationMap = {
+        'target-phish-method': language === 'chinese' ? 'MetaMask 彈窗中的 "Security Update" 按鈕' : 'The "Security Update" button in MetaMask popup',
+        'target-phish-gasfee': language === 'chinese' ? 'MetaMask 彈窗中的 "Gas Fee" 區域' : 'The "Gas Fee" section in MetaMask popup',
+        'target-tvl': language === 'chinese' ? '頁面頂部的比特幣價格顯示' : 'Bitcoin price display at the top of the page',
+        'target-apy': language === 'chinese' ? '標題中的 "零風險被動收入" 文字' : 'The "Zero-Risk Passive Yield" text in the title',
+        'target-kyc': language === 'chinese' ? '關於我們區塊中的 "免 KYC" 聲明' : 'The "no-KYC" claim in the About Us section',
+        'target-mas': language === 'chinese' ? '右側的 "新加坡 MAS 金融牌照" 卡片' : 'The "Singapore MAS Financial License" card on the right',
+        'target-partners': language === 'chinese' ? '底部的 "Strategic Partners" 合作夥伴區塊' : 'The "Strategic Partners" section at the bottom',
+      };
+      return locationMap[targetId] || '';
+    };
+
     const checkItems = [
       {
         label: t.completionLabel,
@@ -702,11 +716,56 @@ const QuantumFiScam = ({ language: propLanguage, onSuccess, onFail, onGenerateRe
         showValue: true,
         details:
           !isSuccess && missingTargets.length > 0 ? (
-            <div className="mt-4 space-y-2 text-left">
-              {missingTargets.map((t) => (
-                <p key={t.id} className="text-sm text-gray-200">
-                  • {t.reason}
+            <div className="mt-6 space-y-4">
+              <div className="mb-4 p-4 bg-red-900/20 border-2 border-red-500 rounded-lg">
+                <h4 className="text-red-300 font-bold text-lg mb-2 flex items-center gap-2">
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  {language === 'chinese' ? '未發現的紅旗指標：' : 'Missing Red Flags:'}
+                </h4>
+                <p className="text-red-200 text-sm">
+                  {language === 'chinese' 
+                    ? '以下紅旗指標未被圈出，請重新挑戰並仔細檢查這些位置：'
+                    : 'The following red flags were not marked. Please retry and carefully check these locations:'}
                 </p>
+              </div>
+              {missingTargets.map((target, index) => (
+                <div 
+                  key={target.id} 
+                  className="p-5 bg-red-900/30 border-2 border-red-500 rounded-xl hover:bg-red-900/40 transition-all"
+                  style={{ boxShadow: '0 0 10px rgba(239, 68, 68, 0.3)' }}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 w-10 h-10 bg-red-500 rounded-full flex items-center justify-center font-bold text-white text-lg">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <svg className="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <span className="text-red-300 font-semibold text-base">
+                          {getTargetLocation(target.id)}
+                        </span>
+                      </div>
+                      <div className="ml-7 p-3 bg-red-950/50 rounded-lg border border-red-700/50">
+                        <p className="text-red-200 text-sm leading-relaxed">
+                          <span className="font-bold text-red-300">
+                            {language === 'chinese' ? '問題：' : 'Issue: '}
+                          </span>
+                          {language === 'chinese' ? target.reasonZh : target.reasonEn}
+                        </p>
+                        {target.detailZh && (
+                          <p className="text-red-100 text-xs mt-2 leading-relaxed opacity-90">
+                            {language === 'chinese' ? target.detailZh : target.detailEn}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           ) : null,
@@ -808,6 +867,20 @@ const QuantumFiScam = ({ language: propLanguage, onSuccess, onFail, onGenerateRe
           checkItems={checkItems}
           onRetry={null}
           onNextLevel={null}
+          customStyles={{
+            container: {
+              width: '100vw',
+              height: '100vh',
+              maxHeight: '100vh',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              paddingTop: '20px',
+              paddingBottom: '20px'
+            }
+          }}
         />
 
         {/* 生成決策報告按鈕 */}

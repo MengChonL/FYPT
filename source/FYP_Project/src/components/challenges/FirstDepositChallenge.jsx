@@ -7,6 +7,7 @@ import BrowserFrame from './BrowserFrame';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
 import PhaseRoadmap from '../PhaseRoadmap';
+import SlideConfirmButton from '../SlideConfirmButton';
 import EthereumIcon from '../../assets/Ethereum.png';
 import MetaMaskFox from '../../assets/MetaMask_Fox.png';
 import DiscordFavicon from '../../assets/Discordicon.png';
@@ -1223,6 +1224,17 @@ const FirstDepositChallenge = ({ config, language: propLanguage }) => {
             }
             onNextLevel={handleNextLevel}
             nextLevelButtonText={language === 'chinese' ? '下一關' : 'Next Level'}
+            // ★ 修改：在下方添加滑動條，且保留上方 Next Level 按鈕
+            customActionComponent={
+              isCorrect ? (
+                <div className="mt-4">
+                  <SlideConfirmButton 
+                    text={language === 'chinese' ? '滑動前往下一關' : 'SLIDE TO CONTINUE'}
+                    onConfirm={handleNextLevel}
+                  />
+                </div>
+              ) : null
+            }
           />
         </div>
       )}

@@ -36,7 +36,11 @@ const ConsentModal = ({ isOpen, onClose, onConsent, onLogin }) => {
         }
       } catch (error) {
         console.error('檢查用戶名失敗:', error);
+        // If API is temporarily unavailable, don't hard-block the user from starting.
         setUsernameAvailable(null);
+        setUsernameError(language === 'chinese'
+          ? '⚠️ 暫時無法驗證用戶名（網絡/伺服器問題）。你仍可繼續開始遊戲，稍後再同步。'
+          : '⚠️ Unable to verify username right now (network/server issue). You can still start and sync later.');
       } finally {
         setIsCheckingUsername(false);
       }
@@ -74,7 +78,13 @@ const ConsentModal = ({ isOpen, onClose, onConsent, onLogin }) => {
     }
   };
 
-  const isFormValid = web3Experience !== null && dataConsent !== null && userName.trim() && usernameAvailable === true;
+  // Allow proceeding unless the username is explicitly known to be taken.
+  // This prevents the UI from getting stuck when the API check fails.
+  const isFormValid =
+    web3Experience !== null &&
+    dataConsent !== null &&
+    userName.trim() &&
+    usernameAvailable !== false;
   const isLoginValid = loginUsername.trim();
 
   return (

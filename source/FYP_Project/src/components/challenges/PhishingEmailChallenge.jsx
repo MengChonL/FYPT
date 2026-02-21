@@ -7,6 +7,7 @@ import BrowserFrame from './BrowserFrame';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
 import PhaseRoadmap from '../PhaseRoadmap';
+import SlideConfirmButton from '../SlideConfirmButton';
 
 // === 1. 圖片引入 ===
 import GoogleFavicon from '../../assets/Google__G__logo.png'; 
@@ -438,8 +439,6 @@ const PhishingEmailChallenge = ({ config, language: propLanguage }) => {
                   <span className="font-medium truncate">{currentContent.discord.channelGeneral}</span>
                 </div>
               </div>
-              
-              {/* User Profile Footer 已刪除 */}
             </div>
 
             {/* 3. 右側：聊天主視窗 */}
@@ -825,6 +824,17 @@ const PhishingEmailChallenge = ({ config, language: propLanguage }) => {
           ]}
             onNextLevel={handleNextLevel}
             nextLevelButtonText={language === 'chinese' ? '下一關' : 'Next Level'}
+            // 這裡使用了 customActionComponent 來插入滑動條，並且没有移除原本的按鈕
+            customActionComponent={
+              isCorrect ? (
+                <div className="mt-4">
+                  <SlideConfirmButton 
+                    text={language === 'chinese' ? '滑動前往下一關' : 'SLIDE TO CONTINUE'}
+                    onConfirm={handleNextLevel}
+                  />
+                </div>
+              ) : null
+            }
           />
         </div>
       )}
