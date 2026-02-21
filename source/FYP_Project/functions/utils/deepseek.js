@@ -83,16 +83,17 @@ ${performanceText}
 4. 只輸出純 JSON，不要包含任何額外文字或 markdown 標記。`;
 
   try {
-    // deepseek-reasoner 不支持 temperature、response_format 等參數
     const completion = await client.chat.completions.create({
-      model: 'deepseek-reasoner',
+      model: 'deepseek-chat',
       messages: [
         { 
           role: 'system', 
-          content: '你是一位專業的 Web3 安全分析師。請必須嚴格按照要求輸出純淨的 JSON 格式，確保繁體中文字符正確編碼。recommendations 必須是字串陣列格式。只輸出 JSON，不要輸出任何其他文字。'
+          content: '你是一位專業的 Web3 安全分析師。請必須嚴格按照要求輸出純淨的 JSON 格式，確保繁體中文字符正確編碼。recommendations 必須是字串陣列格式。'
         },
         { role: 'user', content: prompt }
       ],
+      temperature: 0.7,
+      response_format: { type: 'json_object' },
     });
 
     const rawContent = completion.choices[0].message.content;
