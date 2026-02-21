@@ -29,11 +29,8 @@ const getSupabase = (env) => {
 };
 
 // 使用標�? UTC ISO 字串，避?��??�導致?��???duration_ms
-// 統一使用 UTC+8 (香港時區) 存儲時間戳
 export const getLocalTimestamp = () => {
-  const now = new Date();
-  const hkTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-  return hkTime.toISOString().replace('Z', '+08:00');
+  return new Date().toISOString();
 };
 
 // ===== 1. ?�戲?�場?�相??(GET) =====

@@ -817,8 +817,9 @@ const WalletTransferChallenge = ({ config, language: propLanguage }) => {
     // 成功後的回執頁（參考提供截圖）
     if (showReceipt) {
       const ts = new Date();
-      const hkTime = ts.toLocaleString('en-US', { timeZone: 'Asia/Hong_Kong', hour: '2-digit', minute: '2-digit', hour12: false });
-      const timestamp = hkTime;
+      const hh = ts.getHours().toString().padStart(2, '0');
+      const mm = ts.getMinutes().toString().padStart(2, '0');
+      const timestamp = `${hh}:${mm}`;
       // 記錄顯示金額固定為 0.0001 ETH（與實際輸入無關）
       const fixedRecordAmount = 0.0001;
       const displayAmount = fixedRecordAmount.toFixed(4);

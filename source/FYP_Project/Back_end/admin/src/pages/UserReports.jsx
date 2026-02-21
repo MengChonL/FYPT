@@ -213,7 +213,7 @@ const UserReports = ({ language }) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `report_${username}_${new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Hong_Kong' })}.csv`;
+    a.download = `report_${username}_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
