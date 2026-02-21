@@ -28,11 +28,9 @@ const getSupabase = (env) => {
   return { supabase, supabaseAdmin };
 };
 
-// 設定時區 (香港 UTC+8)
+// 使用標準 UTC ISO 字串，避免時區導致的負數 duration_ms
 export const getLocalTimestamp = () => {
-  const now = new Date();
-  const localTime = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-  return localTime.toISOString().replace('Z', '+08:00');
+  return new Date().toISOString();
 };
 
 // ===== 1. 遊戲與場景相關 (GET) =====
@@ -177,7 +175,11 @@ export const updateProgress = async (userId, scenarioId, status, env) => {
 
 export const getUserAttempts = async (userId, env) => {
   const { supabaseAdmin } = getSupabase(env);
-  const { data, error } = await supabaseAdmin.from('user_attempts').select('*, scenarios(title_zh, title_en)').eq('user_id', userId).order('created_at', { ascending: false });
+  const { data, error } = await supabaseAdmin
+    .from('user_attempts')
+    .select('*, scenarios(scenario_id, scenario_code, title_zh, title_en)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
 };
@@ -205,7 +207,9 @@ export const completeAttempt = async (attemptId, isSuccess, errorDetails, env) =
   if (fetchError || !attempt) throw fetchError || new Error('Attempt not found');
 
   const startTime = new Date(attempt.start_time);
-  const durationMs = endTimeDate.getTime() - startTime.getTime();
+  let durationMs = endTimeDate.getTime() - startTime.getTime();
+  // 防止負數 duration（舊資料或時區問題）
+  if (durationMs < 0) durationMs = 0;
 
   const existingErrors = attempt.error_details || {};
   const hasStageErrors = existingErrors.stage_errors && existingErrors.stage_errors.length > 0;
@@ -232,6 +236,132 @@ export const recordStageError = async (attemptId, stageError, env) => {
   }).eq('attempt_id', attemptId);
   if (error) throw error;
   return data;
+};
+
+// ===== 3.5 統計 API =====
+
+export const getUserStatistics = async (userId, env) => {
+  const attempts = await getUserAttempts(userId, env);
+  if (!attempts || attempts.length === 0) {
+    return {
+      overall: {
+        total_attempts: 0,
+        success_attempts: 0,
+        failed_attempts: 0,
+        success_rate: 0,
+        avg_time_ms: 0,
+        total_time_ms: 0
+      },
+      by_scenario: []
+    };
+  }
+
+  const totalAttempts = attempts.length;
+  const successAttempts = attempts.filter(a => a.is_success).length;
+  const failedAttempts = totalAttempts - successAttempts;
+  const successRate = totalAttempts > 0 ? parseFloat((successAttempts / totalAttempts * 100).toFixed(2)) : 0;
+
+  // 只計算正數 duration_ms，避免負數影響
+  const totalTime = attempts.reduce((sum, a) => {
+    const d = a.duration_ms || 0;
+    return sum + (d > 0 ? d : 0);
+  }, 0);
+  const avgTimeMs = totalAttempts > 0 ? Math.round(totalTime / totalAttempts) : 0;
+
+  const scenarioStats = {};
+  attempts.forEach(attempt => {
+    const code = attempt.scenarios?.scenario_code || 'unknown';
+    if (!scenarioStats[code]) {
+      scenarioStats[code] = {
+        scenario_code: code,
+        scenario_title_zh: attempt.scenarios?.title_zh,
+        scenario_title_en: attempt.scenarios?.title_en,
+        total_attempts: 0,
+        success_count: 0,
+        fail_count: 0,
+        total_time_ms: 0,
+        avg_time_ms: 0,
+        fastest_time_ms: null,
+        slowest_time_ms: null,
+        error_types: {}
+      };
+    }
+
+    const stat = scenarioStats[code];
+    stat.total_attempts++;
+
+    if (attempt.is_success) {
+      stat.success_count++;
+    } else {
+      stat.fail_count++;
+      if (attempt.error_details?.error_type) {
+        const errorType = attempt.error_details.error_type;
+        stat.error_types[errorType] = (stat.error_types[errorType] || 0) + 1;
+      }
+    }
+
+    const d = attempt.duration_ms || 0;
+    if (d > 0) {
+      stat.total_time_ms += d;
+      if (stat.fastest_time_ms === null || d < stat.fastest_time_ms) {
+        stat.fastest_time_ms = d;
+      }
+      if (stat.slowest_time_ms === null || d > stat.slowest_time_ms) {
+        stat.slowest_time_ms = d;
+      }
+    }
+  });
+
+  Object.values(scenarioStats).forEach(stat => {
+    if (stat.total_attempts > 0) {
+      stat.avg_time_ms = Math.round(stat.total_time_ms / stat.total_attempts);
+      stat.success_rate = parseFloat(((stat.success_count / stat.total_attempts) * 100).toFixed(2));
+    }
+  });
+
+  return {
+    overall: {
+      total_attempts: totalAttempts,
+      success_attempts: successAttempts,
+      failed_attempts: failedAttempts,
+      success_rate: successRate,
+      avg_time_ms: avgTimeMs,
+      total_time_ms: totalTime
+    },
+    by_scenario: Object.values(scenarioStats)
+  };
+};
+
+export const getScenarioStatistics = async (userId, scenarioCode, env) => {
+  const attempts = await getUserAttempts(userId, env);
+  const scenarioAttempts = attempts.filter(a => a.scenarios?.scenario_code === scenarioCode);
+
+  if (scenarioAttempts.length === 0) {
+    return {
+      scenario_code: scenarioCode,
+      total_attempts: 0,
+      success_count: 0,
+      fail_count: 0,
+      attempts: []
+    };
+  }
+
+  const attemptsList = scenarioAttempts.map(a => ({
+    attempt_id: a.attempt_id,
+    is_success: a.is_success,
+    start_time: a.start_time,
+    end_time: a.end_time,
+    duration_ms: a.duration_ms > 0 ? a.duration_ms : null,
+    error_details: a.error_details
+  }));
+
+  return {
+    scenario_code: scenarioCode,
+    total_attempts: scenarioAttempts.length,
+    success_count: scenarioAttempts.filter(a => a.is_success).length,
+    fail_count: scenarioAttempts.filter(a => !a.is_success).length,
+    attempts: attemptsList
+  };
 };
 
 // ===== 4. 報告與後台管理 =====
@@ -342,7 +472,7 @@ export const generateFinalReport = async (userId, env) => {
     scenarioMap[code].scenario_title = attempt.scenarios?.title_zh || code;
     scenarioMap[code].attempts.push(attempt);
     scenarioMap[code].total_attempts++;
-    scenarioMap[code].total_time_ms += (attempt.duration_ms || 0);
+    scenarioMap[code].total_time_ms += Math.max(0, attempt.duration_ms || 0);
     if (attempt.is_success) {
       scenarioMap[code].successful_attempts++;
       scenarioMap[code].final_success = true;
@@ -403,7 +533,7 @@ export const generateFinalReport = async (userId, env) => {
     };
   });
 
-  const totalTimeMs = attempts.reduce((sum, a) => sum + (a.duration_ms || 0), 0);
+  const totalTimeMs = attempts.reduce((sum, a) => sum + Math.max(0, a.duration_ms || 0), 0);
   const successAttempts = attempts.filter(a => a.is_success);
   const successRate = attempts.length > 0 ? (successAttempts.length / attempts.length) * 100 : 0;
 

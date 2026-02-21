@@ -258,6 +258,26 @@ export async function onRequest(context) {
       return jsonResponse(await supabase.updateProgress(userId, scenarioId, status, envVars), 200, request);
     }
 
+    // GET /api/users/:userId/statistics
+    const statisticsMatch = pathname.match(/^\/api\/users\/([^/]+)\/statistics$/);
+    if (statisticsMatch && method === 'GET') {
+      const userId = statisticsMatch[1];
+      if (!isValidUUID(userId)) return errorResponse('Invalid ID', 400, request);
+      return jsonResponse(await supabase.getUserStatistics(userId, envVars), 200, request);
+    }
+
+    // GET /api/users/:userId/statistics/:scenarioCode
+    const scenarioStatsMatch = pathname.match(/^\/api\/users\/([^/]+)\/statistics\/([^/]+)$/);
+    if (scenarioStatsMatch && method === 'GET') {
+      const userId = scenarioStatsMatch[1];
+      const scenarioCode = scenarioStatsMatch[2];
+      if (!isValidUUID(userId)) return errorResponse('Invalid ID', 400, request);
+      if (!scenarioCode || scenarioCode.length > 50 || !/^[a-zA-Z0-9_-]+$/.test(scenarioCode)) {
+        return errorResponse('Invalid scenario code', 400, request);
+      }
+      return jsonResponse(await supabase.getScenarioStatistics(userId, scenarioCode, envVars), 200, request);
+    }
+
     // ===== Attempts API =====
 
     // POST /api/attempts/start
