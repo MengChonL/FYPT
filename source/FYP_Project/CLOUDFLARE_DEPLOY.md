@@ -22,12 +22,21 @@ source/FYP_Project/
 
 ### 1. 准备环境变量
 
-在 Cloudflare Dashboard 中设置以下环境变量：
+在 Cloudflare Dashboard 中设置以下环境变量（**Settings** > **Environment variables**）：
 
-- `SUPABASE_URL` - Supabase 项目 URL
-- `SUPABASE_ANON_KEY` - Supabase 匿名密钥
-- `SUPABASE_SERVICE_ROLE_KEY` - Supabase 服务角色密钥（用于管理员操作）
-- `DEEPSEEK_API_KEY` - DeepSeek API 密钥（用于 AI 分析）
+| 變數名稱 | 說明 | 取得方式 |
+|---------|------|----------|
+| `SUPABASE_URL` | Supabase 專案 URL | Supabase Dashboard > Project Settings > API |
+| `SUPABASE_ANON_KEY` | Supabase 匿名金鑰 | 同上 |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase 服務角色金鑰 | 同上（需啟用 service_role） |
+| `DEEPSEEK_API_KEY` | DeepSeek API 金鑰 | [DeepSeek Platform](https://platform.deepseek.com/) |
+| `JWT_SECRET` | Admin 後台 JWT 簽名密鑰 | 自訂字串（至少 32 字元） |
+
+**常見錯誤檢查：**
+- 複製時勿多餘空格或換行
+- `SUPABASE_URL` 格式應為 `https://xxxxx.supabase.co`
+- `SUPABASE_SERVICE_ROLE_KEY` 必須使用 **service_role**（非 anon key），否則報告生成、用戶建立等會失敗
+- `DEEPSEEK_API_KEY` 錯誤時，AI 分析會回傳 fallback 內容，報告會顯示「全部正確」等預設建議
 
 ### 2. 在 Cloudflare Pages 中创建项目
 

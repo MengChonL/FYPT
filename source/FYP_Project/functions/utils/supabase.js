@@ -193,8 +193,31 @@ export const startAttempt = async (userId, scenarioId, sessionId, env) => {
 
 export const completeAttempt = async (attemptId, isSuccess, errorDetails, env) => {
   const { supabaseAdmin } = getSupabase(env);
+  const endTime = getLocalTimestamp();
+  const endTimeDate = new Date();
+
+  const { data: attempt, error: fetchError } = await supabaseAdmin
+    .from('user_attempts')
+    .select('start_time, error_details')
+    .eq('attempt_id', attemptId)
+    .single();
+
+  if (fetchError || !attempt) throw fetchError || new Error('Attempt not found');
+
+  const startTime = new Date(attempt.start_time);
+  const durationMs = endTimeDate.getTime() - startTime.getTime();
+
+  const existingErrors = attempt.error_details || {};
+  const hasStageErrors = existingErrors.stage_errors && existingErrors.stage_errors.length > 0;
+  const finalErrorDetails = (hasStageErrors || errorDetails)
+    ? { ...(errorDetails || {}), stage_errors: existingErrors.stage_errors || [] }
+    : errorDetails;
+
   const { data, error } = await supabaseAdmin.from('user_attempts').update({
-    end_time: getLocalTimestamp(), is_success: isSuccess, error_details: errorDetails
+    end_time: endTime,
+    duration_ms: durationMs,
+    is_success: isSuccess,
+    error_details: finalErrorDetails
   }).eq('attempt_id', attemptId).select().single();
   if (error) throw error;
   return data;
@@ -236,14 +259,174 @@ export const updateReportAIAnalysis = async (userId, aiAnalysis, env) => {
   return data;
 };
 
+// scenario_code 別名對應（舊格式 -> 新格式）
+const SCENARIO_CODE_ALIASES = {
+  'malicious-auth': 'phase2-1',
+  'judge-auth': 'phase2-2',
+  'phase2-danger-auth': 'phase2-3',
+};
+
+const normalizeScenarioCode = (code) => SCENARIO_CODE_ALIASES[code] || code;
+
 export const generateFinalReport = async (userId, env) => {
-  // 簡化版邏輯，確保能匯出
-  const attempts = await getUserAttempts(userId, env);
-  const reportData = { user_id: userId, total_scenarios_completed: attempts.length, generated_at: getLocalTimestamp() };
   const { supabaseAdmin } = getSupabase(env);
-  const { data, error } = await supabaseAdmin.from('user_final_reports').upsert(reportData).select().single();
-  if (error) throw error;
-  return data;
+
+  const { data: attempts, error: attemptsError } = await supabaseAdmin
+    .from('user_attempts')
+    .select('*, scenarios(scenario_id, scenario_code, title_zh, title_en, phase_id)')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true });
+
+  if (attemptsError) throw attemptsError;
+  if (!attempts || attempts.length === 0) {
+    throw new Error('No attempts found for this user');
+  }
+
+  const allScenarioCodes = [
+    'phase1-1', 'phase1-2', 'phase1-3', 'phase1-4', 'phase1-5', 'phase1-6',
+    'phase2-1', 'phase2-2', 'phase2-3'
+  ];
+
+  const scenarioMap = {};
+  allScenarioCodes.forEach(code => {
+    scenarioMap[code] = {
+      scenario_code: code,
+      scenario_title: '',
+      attempts: [],
+      total_attempts: 0,
+      successful_attempts: 0,
+      total_time_ms: 0,
+      final_success: false
+    };
+  });
+
+  attempts.forEach(attempt => {
+    const rawCode = attempt.scenarios?.scenario_code || 'unknown';
+    const code = normalizeScenarioCode(rawCode);
+    if (!scenarioMap[code]) return;
+
+    scenarioMap[code].scenario_title = attempt.scenarios?.title_zh || code;
+    scenarioMap[code].attempts.push(attempt);
+    scenarioMap[code].total_attempts++;
+    scenarioMap[code].total_time_ms += (attempt.duration_ms || 0);
+    if (attempt.is_success) {
+      scenarioMap[code].successful_attempts++;
+      scenarioMap[code].final_success = true;
+    }
+  });
+
+  const performance_summary = allScenarioCodes.map(code => {
+    const s = scenarioMap[code];
+    const successAttemptIndex = s.attempts.findIndex(a => a.is_success);
+    return {
+      scenario_code: code,
+      scenario_title: s.scenario_title,
+      total_attempts: s.total_attempts,
+      successful_attempt_number: successAttemptIndex >= 0 ? successAttemptIndex + 1 : null,
+      total_time_ms: s.total_time_ms,
+      avg_time_ms: s.total_attempts > 0 ? Math.round(s.total_time_ms / s.total_attempts) : 0,
+      final_success: s.final_success
+    };
+  });
+
+  const errorCounts = {};
+  let totalErrors = 0;
+  attempts.forEach(attempt => {
+    const details = attempt.error_details;
+    if (!details) return;
+
+    if (details.missing_targets && details.missing_targets.length > 0) {
+      details.missing_targets.forEach(mt => {
+        const cat = mt.category || 'unknown';
+        errorCounts[cat] = errorCounts[cat] || { count: 0, targets: [] };
+        errorCounts[cat].count += 1;
+        if (!errorCounts[cat].targets.includes(mt.id)) errorCounts[cat].targets.push(mt.id);
+        totalErrors++;
+      });
+    }
+    if (details.stage_errors) {
+      details.stage_errors.forEach(se => {
+        if (se.error_type) {
+          errorCounts[se.error_type] = errorCounts[se.error_type] || { count: 0 };
+          errorCounts[se.error_type].count += 1;
+          totalErrors++;
+        }
+      });
+    }
+    if (details.error_type && details.error_type !== 'incomplete_red_flag_detection' && details.error_type !== 'none') {
+      errorCounts[details.error_type] = errorCounts[details.error_type] || { count: 0 };
+      errorCounts[details.error_type].count += 1;
+      totalErrors++;
+    }
+  });
+
+  const error_distribution = {};
+  Object.entries(errorCounts).forEach(([key, val]) => {
+    error_distribution[key] = {
+      count: val.count,
+      percentage: totalErrors > 0 ? parseFloat(((val.count / totalErrors) * 100).toFixed(2)) : 0,
+      ...(val.targets ? { targets: val.targets } : {}),
+    };
+  });
+
+  const totalTimeMs = attempts.reduce((sum, a) => sum + (a.duration_ms || 0), 0);
+  const successAttempts = attempts.filter(a => a.is_success);
+  const successRate = attempts.length > 0 ? (successAttempts.length / attempts.length) * 100 : 0;
+
+  let firstTrySuccess = 0;
+  allScenarioCodes.forEach(code => {
+    const s = scenarioMap[code];
+    if (s.attempts.length > 0 && s.attempts[0].is_success) firstTrySuccess++;
+  });
+  const avgTimeMs = attempts.length > 0 ? totalTimeMs / attempts.length : 0;
+  let reactionScore = avgTimeMs < 30000 ? 95 : avgTimeMs < 60000 ? 80 : avgTimeMs < 120000 ? 65 : avgTimeMs < 180000 ? 50 : 35;
+  const getLevel = (score) => score >= 90 ? 'excellent' : score >= 70 ? 'good' : score >= 50 ? 'average' : 'needs_improvement';
+
+  let totalRepeatedFails = 0;
+  allScenarioCodes.forEach(code => {
+    const s = scenarioMap[code];
+    const fails = s.total_attempts - s.successful_attempts;
+    if (fails > 1) totalRepeatedFails += (fails - 1);
+  });
+  const frustration_index = parseFloat(Math.min(totalRepeatedFails * 10, 100).toFixed(2));
+
+  const skill_grading = {
+    reaction_speed: { score: reactionScore, level: getLevel(reactionScore) },
+    accuracy: { score: Math.round(successRate), level: getLevel(successRate) },
+    consistency: { score: Math.round((firstTrySuccess / allScenarioCodes.length) * 100), level: getLevel((firstTrySuccess / allScenarioCodes.length) * 100) }
+  };
+
+  const firstAttempt = attempts[0];
+  const lastAttempt = attempts[attempts.length - 1];
+  const firstDate = new Date(firstAttempt.start_time);
+  const lastDate = new Date(lastAttempt.end_time || lastAttempt.start_time);
+  const totalDays = Math.max(1, Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)));
+
+  const now = getLocalTimestamp();
+  const reportData = {
+    user_id: userId,
+    total_scenarios_completed: allScenarioCodes.filter(c => scenarioMap[c].final_success).length,
+    total_time_ms: totalTimeMs,
+    total_days_to_complete: totalDays,
+    first_attempt_at: firstAttempt.start_time,
+    last_completed_at: lastAttempt.end_time || lastAttempt.start_time,
+    overall_success_rate: parseFloat(successRate.toFixed(2)),
+    performance_summary,
+    error_distribution,
+    skill_grading,
+    frustration_index,
+    generated_at: now,
+    updated_at: now
+  };
+
+  const { data: report, error: reportError } = await supabaseAdmin
+    .from('user_final_reports')
+    .upsert(reportData, { onConflict: 'user_id' })
+    .select()
+    .single();
+
+  if (reportError) throw reportError;
+  return report;
 };
 
 export const deleteUserAndData = async (userId, env) => {

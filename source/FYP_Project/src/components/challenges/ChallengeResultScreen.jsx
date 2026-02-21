@@ -105,8 +105,8 @@ const ChallengeResultScreen = ({
           ...customStyles.container,
         }}
       >
-        {/* 装饰性圆圈和线条 */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }}>
+        {/* 装饰性圆圈和线条 - viewBox 使數值座標按比例顯示 */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 1 }} viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
           <defs>
             <filter id={isSuccess ? "glowGreen" : "glow"}>
               <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
@@ -175,7 +175,7 @@ const ChallengeResultScreen = ({
                       <animate attributeName="stroke-dashoffset" from="0" to="10" dur="1s" repeatCount="indefinite"/>
                     </ellipse>
                     <path 
-                      d={`M 35% ${yPosition}% Q 50% ${yPosition - 3}%, 70% ${yPosition}%`} 
+                      d={`M 35 ${yPosition} Q 50 ${yPosition - 3} 70 ${yPosition}`} 
                       fill="none" 
                       stroke="#ef4444" 
                       strokeWidth="2" 

@@ -437,17 +437,29 @@ const ReportPage = () => {
                     <h3 className="text-2xl font-bold text-cyan-300 mb-8 pixel-font">💡 {t.recommendations}</h3>
                     <ul className="space-y-6">
                       {(() => {
+                        // 使用 optional chaining 安全取得 recommendations
                         const rawRecs =
                           language === 'chinese'
-                            ? aiAnalysis.recommendations_zh
-                            : aiAnalysis.recommendations_en;
+                            ? aiAnalysis?.recommendations_zh
+                            : aiAnalysis?.recommendations_en;
 
-                        // 確保為陣列，避免 AI 回傳單一字串或其他型別時造成 .map 錯誤
-                        const recsArray = Array.isArray(rawRecs)
-                          ? rawRecs
-                          : rawRecs
-                            ? [String(rawRecs)]
-                            : [];
+                        // 確保為陣列，處理各種可能的型別
+                        let recsArray = [];
+                        if (Array.isArray(rawRecs)) {
+                          // 已經是陣列，直接使用
+                          recsArray = rawRecs.filter(rec => rec != null && String(rec).trim() !== '');
+                        } else if (rawRecs != null) {
+                          // 不是陣列但有值，嘗試轉換
+                          if (typeof rawRecs === 'string') {
+                            // 如果是字串，轉為陣列
+                            recsArray = [rawRecs];
+                          } else if (typeof rawRecs === 'object') {
+                            // 如果是物件，嘗試提取值
+                            recsArray = Object.values(rawRecs)
+                              .filter(v => v != null && typeof v === 'string' && String(v).trim() !== '')
+                              .map(v => String(v));
+                          }
+                        }
 
                         if (recsArray.length === 0) {
                           return (
@@ -465,7 +477,7 @@ const ReportPage = () => {
                               <span className="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-cyan-500/30 text-cyan-300 rounded-full text-lg font-bold">
                                 {idx + 1}
                               </span>
-                              <span className="text-gray-200 text-xl leading-relaxed pt-1">{rec}</span>
+                              <span className="text-gray-200 text-xl leading-relaxed pt-1">{String(rec)}</span>
                             </div>
                           </li>
                         ));
