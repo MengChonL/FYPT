@@ -93,7 +93,7 @@ const UserReports = ({ language }) => {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'N/A';
-    return new Date(dateStr).toLocaleString();
+    return new Date(dateStr).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' });
   };
 
   const levelColor = (level) => {

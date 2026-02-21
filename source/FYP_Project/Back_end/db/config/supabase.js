@@ -10,14 +10,9 @@ const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // 設�??��? (香港?��? UTC+8)
-const TIMEZONE_OFFSET = 8; // 小�?
-
-// ?��?帶�??�?��??�戳字符�?
+// 使用標準 UTC ISO 字串存儲，前端顯示時再轉換為 UTC+8
 const getLocalTimestamp = () => {
-  const now = new Date();
-  // ?��??��??�移
-  const localTime = new Date(now.getTime() + TIMEZONE_OFFSET * 60 * 60 * 1000);
-  return localTime.toISOString().replace('Z', '+08:00');
+  return new Date().toISOString();
 };
 
 if (!supabaseUrl || !supabaseAnonKey) {

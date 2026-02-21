@@ -25,7 +25,7 @@ const Users = ({ language }) => {
     { key: 'current_scenario_code', label: isZh ? '進度狀態' : 'Status', render: (val) => statusLabel(val) },
     { key: 'preferred_language', label: isZh ? '語言' : 'Language' },
     { key: 'consent_given', label: isZh ? '同意' : 'Consent', render: (val) => val ? '✅' : '❌' },
-    { key: 'created_at', label: isZh ? '創建日期' : 'Created At', render: (val) => new Date(val).toLocaleDateString() }
+    { key: 'created_at', label: isZh ? '創建日期' : 'Created At', render: (val) => new Date(val).toLocaleDateString('zh-HK', { timeZone: 'Asia/Hong_Kong' }) }
   ];
 
   useEffect(() => {
@@ -169,7 +169,7 @@ const Users = ({ language }) => {
                     </div>
                     <div className="info-item">
                       <span className="info-label">{isZh ? '註冊日期' : 'Registered'}</span>
-                      <span className="info-value">{new Date(selectedUser.created_at).toLocaleString()}</span>
+                      <span className="info-value">{new Date(selectedUser.created_at).toLocaleString('zh-HK', { timeZone: 'Asia/Hong_Kong' })}</span>
                     </div>
                     <div className="info-item">
                       <span className="info-label">{isZh ? '同意書' : 'Consent'}</span>
