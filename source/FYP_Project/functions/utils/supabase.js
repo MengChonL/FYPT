@@ -277,9 +277,43 @@ export const generateFinalReport = async (userId, env) => {
     .eq('user_id', userId)
     .order('created_at', { ascending: true });
 
-  if (attemptsError) throw attemptsError;
+  if (attemptsError) {
+    console.error('[generateFinalReport] Error fetching attempts:', attemptsError);
+    throw attemptsError;
+  }
+  
   if (!attempts || attempts.length === 0) {
-    throw new Error('No attempts found for this user');
+    console.warn('[generateFinalReport] No attempts found for user:', userId);
+    // 返回一個空的報告而不是拋出錯誤
+    const now = getLocalTimestamp();
+    const emptyReport = {
+      user_id: userId,
+      total_scenarios_completed: 0,
+      total_time_ms: 0,
+      total_days_to_complete: 0,
+      first_attempt_at: null,
+      last_completed_at: null,
+      overall_success_rate: 0,
+      performance_summary: [],
+      error_distribution: {},
+      skill_grading: {
+        reaction_speed: { score: 0, level: 'needs_improvement' },
+        accuracy: { score: 0, level: 'needs_improvement' },
+        consistency: { score: 0, level: 'needs_improvement' }
+      },
+      frustration_index: 0,
+      generated_at: now,
+      updated_at: now
+    };
+    
+    const { data: report, error: reportError } = await supabaseAdmin
+      .from('user_final_reports')
+      .upsert(emptyReport, { onConflict: 'user_id' })
+      .select()
+      .single();
+    
+    if (reportError) throw reportError;
+    return report;
   }
 
   const allScenarioCodes = [
@@ -398,9 +432,27 @@ export const generateFinalReport = async (userId, env) => {
 
   const firstAttempt = attempts[0];
   const lastAttempt = attempts[attempts.length - 1];
-  const firstDate = new Date(firstAttempt.start_time);
-  const lastDate = new Date(lastAttempt.end_time || lastAttempt.start_time);
-  const totalDays = Math.max(1, Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)));
+  
+  // 安全處理日期
+  let firstAttemptAt = null;
+  let lastCompletedAt = null;
+  let totalDays = 0;
+  
+  if (firstAttempt?.start_time) {
+    try {
+      firstAttemptAt = firstAttempt.start_time;
+      const firstDate = new Date(firstAttemptAt);
+      if (lastAttempt?.end_time || lastAttempt?.start_time) {
+        lastCompletedAt = lastAttempt.end_time || lastAttempt.start_time;
+        const lastDate = new Date(lastCompletedAt);
+        if (!isNaN(firstDate.getTime()) && !isNaN(lastDate.getTime())) {
+          totalDays = Math.max(1, Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)));
+        }
+      }
+    } catch (dateError) {
+      console.error('[generateFinalReport] Date parsing error:', dateError);
+    }
+  }
 
   const now = getLocalTimestamp();
   const reportData = {
@@ -408,8 +460,8 @@ export const generateFinalReport = async (userId, env) => {
     total_scenarios_completed: allScenarioCodes.filter(c => scenarioMap[c].final_success).length,
     total_time_ms: totalTimeMs,
     total_days_to_complete: totalDays,
-    first_attempt_at: firstAttempt.start_time,
-    last_completed_at: lastAttempt.end_time || lastAttempt.start_time,
+    first_attempt_at: firstAttemptAt,
+    last_completed_at: lastCompletedAt,
     overall_success_rate: parseFloat(successRate.toFixed(2)),
     performance_summary,
     error_distribution,
@@ -419,14 +471,23 @@ export const generateFinalReport = async (userId, env) => {
     updated_at: now
   };
 
-  const { data: report, error: reportError } = await supabaseAdmin
-    .from('user_final_reports')
-    .upsert(reportData, { onConflict: 'user_id' })
-    .select()
-    .single();
+  try {
+    const { data: report, error: reportError } = await supabaseAdmin
+      .from('user_final_reports')
+      .upsert(reportData, { onConflict: 'user_id' })
+      .select()
+      .single();
 
-  if (reportError) throw reportError;
-  return report;
+    if (reportError) {
+      console.error('[generateFinalReport] Error saving report:', reportError);
+      throw reportError;
+    }
+    
+    return report;
+  } catch (error) {
+    console.error('[generateFinalReport] Failed to generate report:', error);
+    throw error;
+  }
 };
 
 export const deleteUserAndData = async (userId, env) => {

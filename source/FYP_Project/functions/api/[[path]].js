@@ -308,19 +308,24 @@ export async function onRequest(context) {
       const userId = reportGenMatch[1];
       if (!isValidUUID(userId)) return errorResponse('Invalid ID', 400, request);
 
-      // 第一步：生成基礎數據報告 (不可失敗)
-      const report = await supabase.generateFinalReport(userId, envVars);
-
-      // 第二步：異步生成 AI 分析，但不應阻塞主要報告回傳
-      let aiResult = null;
       try {
-        aiResult = await generateAIAnalysis(report, envVars);
-        if (aiResult) await supabase.updateReportAIAnalysis(userId, aiResult, envVars);
-      } catch (e) {
-        console.error("AI Generation failed, returning base report:", e.message);
-      }
+        // 第一步：生成基礎數據報告 (不可失敗)
+        const report = await supabase.generateFinalReport(userId, envVars);
 
-      return jsonResponse({ ...report, ai_analysis: aiResult }, 200, request);
+        // 第二步：異步生成 AI 分析，但不應阻塞主要報告回傳
+        let aiResult = null;
+        try {
+          aiResult = await generateAIAnalysis(report, envVars);
+          if (aiResult) await supabase.updateReportAIAnalysis(userId, aiResult, envVars);
+        } catch (e) {
+          console.error("AI Generation failed, returning base report:", e.message);
+        }
+
+        return jsonResponse({ ...report, ai_analysis: aiResult }, 200, request);
+      } catch (err) {
+        console.error('[POST /api/users/:userId/report/generate] Error:', err);
+        return errorResponse(`Failed to generate report: ${err.message || 'Unknown error'}`, 500, request);
+      }
     }
 
     // GET /api/users/:userId/report (獲取已生成的報告)
