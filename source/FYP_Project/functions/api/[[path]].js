@@ -36,7 +36,7 @@ const isValidUUID = (id) => typeof id === 'string' && UUID_REGEX.test(id);
 
 const jsonResponse = (data, status = 200, request) => new Response(JSON.stringify(data), {
   status,
-  headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json' },
+  headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json; charset=utf-8' },
 });
 
 const errorResponse = (message, status = 500, request) => {
@@ -428,13 +428,41 @@ export async function onRequest(context) {
           };
         }
 
-        return jsonResponse({ ...report, ai_analysis: aiResult }, 200, request);
+        // 確保 AI 結果中的中文字符正確編碼
+        const safeAiResult = aiResult ? {
+          summary_zh: aiResult.summary_zh || '',
+          summary_en: aiResult.summary_en || '',
+          recommendations_zh: aiResult.recommendations_zh || [],
+          recommendations_en: aiResult.recommendations_en || [],
+          risk_profile: aiResult.risk_profile || { overall_risk_level: 'medium' },
+          ai_error: aiResult.ai_error || null
+        } : null;
+
+        const responseData = { ...report, ai_analysis: safeAiResult };
+        
+        // 測試 JSON 序列化是否成功
+        try {
+          JSON.stringify(responseData);
+        } catch (serializeErr) {
+          console.error('[report/generate] JSON serialization error:', {
+            error: serializeErr.message,
+            aiResult: aiResult ? {
+              summary_zh_length: aiResult.summary_zh?.length,
+              summary_en_length: aiResult.summary_en?.length,
+              hasRecommendations: !!(aiResult.recommendations_zh || aiResult.recommendations_en)
+            } : null
+          });
+          throw new Error(`JSON serialization failed: ${serializeErr.message}`);
+        }
+
+        return jsonResponse(responseData, 200, request);
       } catch (err) {
         console.error('[POST /api/users/:userId/report/generate] Error:', {
           message: err.message,
           stack: err.stack,
           name: err.name,
-          userId
+          userId,
+          cause: err.cause?.message || null
         });
         return errorResponse(`Failed to generate report: ${err.message || 'Unknown error'}`, 500, request);
       }

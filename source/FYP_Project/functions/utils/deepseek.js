@@ -86,25 +86,59 @@ ${performanceText}
     const rawContent = completion.choices[0].message.content;
     console.log('[generateAIAnalysis] Raw AI response length:', rawContent?.length);
     
+    // 確保內容是有效的 UTF-8 字符串
+    let cleanContent = rawContent;
+    if (typeof cleanContent !== 'string') {
+      cleanContent = String(cleanContent);
+    }
+    
     let parsed;
     try {
-      parsed = JSON.parse(rawContent);
+      parsed = JSON.parse(cleanContent);
     } catch (parseErr) {
       console.error('[generateAIAnalysis] JSON parse error:', parseErr.message);
-      console.error('[generateAIAnalysis] Raw content (first 500 chars):', rawContent?.substring(0, 500));
-      return getFallbackReport(`JSON parse error: ${parseErr.message}`);
+      console.error('[generateAIAnalysis] Raw content (first 500 chars):', cleanContent?.substring(0, 500));
+      // 嘗試清理可能的 markdown code block
+      let cleaned = cleanContent.trim();
+      if (cleaned.startsWith('```json')) {
+        cleaned = cleaned.slice(7);
+      } else if (cleaned.startsWith('```')) {
+        cleaned = cleaned.slice(3);
+      }
+      if (cleaned.endsWith('```')) {
+        cleaned = cleaned.slice(0, -3);
+      }
+      cleaned = cleaned.trim();
+      
+      try {
+        parsed = JSON.parse(cleaned);
+        console.log('[generateAIAnalysis] Successfully parsed after cleaning markdown');
+      } catch (retryErr) {
+        console.error('[generateAIAnalysis] Retry parse also failed:', retryErr.message);
+        return getFallbackReport(`JSON parse error: ${parseErr.message}`);
+      }
     }
 
-    // 驗證和清理返回的數據
+    // 驗證和清理返回的數據，確保所有字符串都是有效的 UTF-8
+    const sanitizeString = (str) => {
+      if (typeof str !== 'string') return String(str || '');
+      // 確保字符串是有效的 UTF-8，移除無效字符
+      try {
+        return str.normalize('NFC'); // 正規化 Unicode
+      } catch {
+        return str;
+      }
+    };
+
     const result = {
-      summary_zh: parsed.summary_zh || '分析摘要暫時不可用',
-      summary_en: parsed.summary_en || 'Analysis summary temporarily unavailable',
+      summary_zh: sanitizeString(parsed.summary_zh || '分析摘要暫時不可用'),
+      summary_en: sanitizeString(parsed.summary_en || 'Analysis summary temporarily unavailable'),
       recommendations_zh: Array.isArray(parsed.recommendations_zh) 
-        ? parsed.recommendations_zh 
-        : (typeof parsed.recommendations_zh === 'string' ? [parsed.recommendations_zh] : ['建議重新練習失敗頻率較高的關卡']),
+        ? parsed.recommendations_zh.map(sanitizeString)
+        : (typeof parsed.recommendations_zh === 'string' ? [sanitizeString(parsed.recommendations_zh)] : ['建議重新練習失敗頻率較高的關卡']),
       recommendations_en: Array.isArray(parsed.recommendations_en)
-        ? parsed.recommendations_en
-        : (typeof parsed.recommendations_en === 'string' ? [parsed.recommendations_en] : ['Re-run scenarios with high failure rates']),
+        ? parsed.recommendations_en.map(sanitizeString)
+        : (typeof parsed.recommendations_en === 'string' ? [sanitizeString(parsed.recommendations_en)] : ['Re-run scenarios with high failure rates']),
       risk_profile: parsed.risk_profile || { overall_risk_level: 'medium' }
     };
 
