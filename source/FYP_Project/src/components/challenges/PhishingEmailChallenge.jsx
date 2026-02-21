@@ -7,6 +7,7 @@ import BrowserFrame from './BrowserFrame';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
 import PhaseRoadmap from '../PhaseRoadmap';
+import SlideConfirmButton from '../SlideConfirmButton';
 
 // === 1. 圖片引入 ===
 import GoogleFavicon from '../../assets/Google__G__logo.png'; 

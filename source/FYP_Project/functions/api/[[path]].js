@@ -258,6 +258,48 @@ export async function onRequest(context) {
       return jsonResponse(await supabase.updateProgress(userId, scenarioId, status, envVars), 200, request);
     }
 
+    // ===== Attempts API =====
+
+    // POST /api/attempts/start
+    if (pathname === '/api/attempts/start' && method === 'POST') {
+      const { userId, scenarioId, sessionId } = await parseBody(request) || {};
+      if (!userId || !isValidUUID(userId)) return errorResponse('Invalid user ID', 400, request);
+      if (!scenarioId || !isValidUUID(scenarioId)) return errorResponse('Invalid scenario ID', 400, request);
+      if (sessionId && (typeof sessionId !== 'string' || sessionId.length > 100)) {
+        return errorResponse('Invalid session ID', 400, request);
+      }
+      return jsonResponse(await supabase.startAttempt(userId, scenarioId, sessionId, envVars), 200, request);
+    }
+
+    // POST /api/attempts/complete
+    if (pathname === '/api/attempts/complete' && method === 'POST') {
+      const { attemptId, isSuccess, errorDetails } = await parseBody(request) || {};
+      if (!attemptId || !isValidUUID(attemptId)) return errorResponse('Invalid attempt ID', 400, request);
+      if (typeof isSuccess !== 'boolean') return errorResponse('isSuccess must be a boolean', 400, request);
+      if (errorDetails) {
+        if (typeof errorDetails !== 'object' || Array.isArray(errorDetails)) {
+          return errorResponse('errorDetails must be an object', 400, request);
+        }
+        if (JSON.stringify(errorDetails).length > 5000) {
+          return errorResponse('errorDetails too large (max 5KB)', 400, request);
+        }
+      }
+      return jsonResponse(await supabase.completeAttempt(attemptId, isSuccess, errorDetails, envVars), 200, request);
+    }
+
+    // POST /api/attempts/stage-error
+    if (pathname === '/api/attempts/stage-error' && method === 'POST') {
+      const { attemptId, stageError } = await parseBody(request) || {};
+      if (!attemptId || !isValidUUID(attemptId)) return errorResponse('Invalid attempt ID', 400, request);
+      if (!stageError || typeof stageError !== 'object' || Array.isArray(stageError)) {
+        return errorResponse('stageError must be an object', 400, request);
+      }
+      if (JSON.stringify(stageError).length > 5000) {
+        return errorResponse('stageError too large (max 5KB)', 400, request);
+      }
+      return jsonResponse(await supabase.recordStageError(attemptId, stageError, envVars), 200, request);
+    }
+
     // ===== 訓練報告與 AI 分析 (關鍵修正點) =====
 
     // POST /api/users/:userId/report/generate

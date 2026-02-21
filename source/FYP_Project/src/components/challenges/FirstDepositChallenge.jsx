@@ -7,6 +7,7 @@ import BrowserFrame from './BrowserFrame';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
 import PhaseRoadmap from '../PhaseRoadmap';
+import SlideConfirmButton from '../SlideConfirmButton';
 import EthereumIcon from '../../assets/Ethereum.png';
 import MetaMaskFox from '../../assets/MetaMask_Fox.png';
 import DiscordFavicon from '../../assets/Discordicon.png';

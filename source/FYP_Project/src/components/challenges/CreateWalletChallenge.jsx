@@ -6,6 +6,7 @@ import BrowserFrame from './BrowserFrame';
 import ChallengeTemplate from './ChallengeTemplate';
 import ChallengeResultScreen from './ChallengeResultScreen';
 import PhaseRoadmap from '../PhaseRoadmap';
+import SlideConfirmButton from '../SlideConfirmButton';
 import MetaMaskFox from '../../assets/MetaMask_Fox.png';
 
 const CreateWalletChallenge = ({ config, language: propLanguage }) => {
