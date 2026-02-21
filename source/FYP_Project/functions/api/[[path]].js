@@ -150,6 +150,149 @@ export async function onRequest(context) {
       }
     }
 
+    // 診斷端點 - 測試報告生成流程
+    if (pathname === '/api/debug/test-report-generation' && method === 'GET') {
+      const userId = searchParams.get('userId');
+      if (!userId || !isValidUUID(userId)) {
+        return jsonResponse({ 
+          success: false, 
+          error: 'Valid userId parameter required (UUID format)' 
+        }, 400, request);
+      }
+
+      const debugInfo = {
+        userId,
+        timestamp: new Date().toISOString(),
+        steps: {}
+      };
+
+      try {
+        // Step 1: 測試生成基礎報告
+        debugInfo.steps.step1_generateReport = { status: 'testing' };
+        try {
+          const report = await supabase.generateFinalReport(userId, envVars);
+          debugInfo.steps.step1_generateReport = {
+            status: 'success',
+            hasReport: !!report,
+            reportKeys: report ? Object.keys(report) : [],
+            totalScenarios: report?.total_scenarios_completed,
+            successRate: report?.overall_success_rate,
+            hasPerformanceSummary: !!report?.performance_summary,
+            performanceSummaryLength: Array.isArray(report?.performance_summary) ? report.performance_summary.length : 0
+          };
+        } catch (step1Err) {
+          debugInfo.steps.step1_generateReport = {
+            status: 'failed',
+            error: {
+              message: step1Err.message,
+              code: step1Err.code,
+              details: step1Err.details,
+              hint: step1Err.hint
+            }
+          };
+          return jsonResponse(debugInfo, 500, request);
+        }
+
+        // Step 2: 測試 AI 分析
+        debugInfo.steps.step2_aiAnalysis = { status: 'testing' };
+        try {
+          const report = await supabase.generateFinalReport(userId, envVars);
+          const aiResult = await generateAIAnalysis(report, envVars);
+          debugInfo.steps.step2_aiAnalysis = {
+            status: 'success',
+            hasResult: !!aiResult,
+            hasSummaryZh: !!aiResult?.summary_zh,
+            hasSummaryEn: !!aiResult?.summary_en,
+            hasRecommendations: !!(aiResult?.recommendations_zh || aiResult?.recommendations_en),
+            hasError: !!aiResult?.ai_error,
+            errorMessage: aiResult?.ai_error || null,
+            summaryZhLength: aiResult?.summary_zh?.length || 0,
+            summaryEnLength: aiResult?.summary_en?.length || 0
+          };
+        } catch (step2Err) {
+          debugInfo.steps.step2_aiAnalysis = {
+            status: 'failed',
+            error: {
+              message: step2Err.message,
+              stack: step2Err.stack,
+              name: step2Err.name
+            }
+          };
+        }
+
+        // Step 3: 測試數據庫保存
+        debugInfo.steps.step3_saveToDatabase = { status: 'testing' };
+        try {
+          const report = await supabase.generateFinalReport(userId, envVars);
+          const aiResult = await generateAIAnalysis(report, envVars);
+          if (aiResult && !aiResult.ai_error) {
+            await supabase.updateReportAIAnalysis(userId, aiResult, envVars);
+            debugInfo.steps.step3_saveToDatabase = {
+              status: 'success',
+              message: 'AI analysis saved successfully'
+            };
+          } else {
+            debugInfo.steps.step3_saveToDatabase = {
+              status: 'skipped',
+              reason: 'AI analysis has error or is null'
+            };
+          }
+        } catch (step3Err) {
+          debugInfo.steps.step3_saveToDatabase = {
+            status: 'failed',
+            error: {
+              message: step3Err.message,
+              code: step3Err.code,
+              details: step3Err.details,
+              hint: step3Err.hint
+            }
+          };
+        }
+
+        // Step 4: 測試完整流程
+        debugInfo.steps.step4_fullFlow = { status: 'testing' };
+        try {
+          const report = await supabase.generateFinalReport(userId, envVars);
+          const aiResult = await generateAIAnalysis(report, envVars);
+          const safeAiResult = aiResult ? {
+            summary_zh: aiResult.summary_zh || '',
+            summary_en: aiResult.summary_en || '',
+            recommendations_zh: aiResult.recommendations_zh || [],
+            recommendations_en: aiResult.recommendations_en || [],
+            risk_profile: aiResult.risk_profile || { overall_risk_level: 'medium' },
+            ai_error: aiResult.ai_error || null
+          } : null;
+          const responseData = { ...report, ai_analysis: safeAiResult };
+          const jsonString = JSON.stringify(responseData);
+          
+          debugInfo.steps.step4_fullFlow = {
+            status: 'success',
+            responseSize: jsonString.length,
+            canSerialize: true
+          };
+        } catch (step4Err) {
+          debugInfo.steps.step4_fullFlow = {
+            status: 'failed',
+            error: {
+              message: step4Err.message,
+              stack: step4Err.stack
+            }
+          };
+        }
+
+        debugInfo.success = true;
+        return jsonResponse(debugInfo, 200, request);
+      } catch (err) {
+        debugInfo.success = false;
+        debugInfo.error = {
+          message: err.message,
+          stack: err.stack,
+          name: err.name
+        };
+        return jsonResponse(debugInfo, 500, request);
+      }
+    }
+
     // 診斷端點 - 測試 DeepSeek API
     if (pathname === '/api/debug/test-deepseek' && method === 'GET') {
       try {
@@ -383,14 +526,31 @@ export async function onRequest(context) {
       const userId = reportGenMatch[1];
       if (!isValidUUID(userId)) return errorResponse('Invalid ID', 400, request);
 
+      const startTime = Date.now();
+      console.log(`[report/generate] Starting report generation for user: ${userId}`);
+
       try {
         // 第一步：生成基礎數據報告 (不可失敗)
         let report;
         try {
+          console.log('[report/generate] Step 1: Generating base report...');
           report = await supabase.generateFinalReport(userId, envVars);
-          console.log('[report/generate] Base report generated successfully');
+          console.log('[report/generate] Base report generated successfully', {
+            hasReport: !!report,
+            reportKeys: report ? Object.keys(report) : [],
+            totalScenarios: report?.total_scenarios_completed,
+            successRate: report?.overall_success_rate
+          });
         } catch (reportErr) {
-          console.error('[report/generate] Failed to generate base report:', reportErr);
+          console.error('[report/generate] Failed to generate base report:', {
+            message: reportErr.message,
+            stack: reportErr.stack,
+            name: reportErr.name,
+            code: reportErr.code,
+            details: reportErr.details,
+            hint: reportErr.hint,
+            userId
+          });
           throw new Error(`Failed to generate base report: ${reportErr.message || 'Unknown error'}`);
         }
 
@@ -451,30 +611,64 @@ export async function onRequest(context) {
         const responseData = { ...report, ai_analysis: safeAiResult };
         
         // 測試 JSON 序列化是否成功
+        console.log('[report/generate] Step 3: Validating response data...');
         try {
-          JSON.stringify(responseData);
+          const jsonString = JSON.stringify(responseData);
+          console.log('[report/generate] JSON serialization successful', {
+            responseSize: jsonString.length,
+            hasReport: !!responseData,
+            hasAiAnalysis: !!responseData.ai_analysis
+          });
         } catch (serializeErr) {
           console.error('[report/generate] JSON serialization error:', {
             error: serializeErr.message,
+            stack: serializeErr.stack,
+            reportKeys: report ? Object.keys(report) : [],
             aiResult: aiResult ? {
               summary_zh_length: aiResult.summary_zh?.length,
               summary_en_length: aiResult.summary_en?.length,
-              hasRecommendations: !!(aiResult.recommendations_zh || aiResult.recommendations_en)
+              hasRecommendations: !!(aiResult.recommendations_zh || aiResult.recommendations_en),
+              keys: Object.keys(aiResult)
             } : null
           });
           throw new Error(`JSON serialization failed: ${serializeErr.message}`);
         }
 
+        const duration = Date.now() - startTime;
+        console.log(`[report/generate] Report generation completed successfully in ${duration}ms`);
         return jsonResponse(responseData, 200, request);
       } catch (err) {
-        console.error('[POST /api/users/:userId/report/generate] Error:', {
+        const duration = Date.now() - startTime;
+        const errorDetails = {
           message: err.message,
           stack: err.stack,
           name: err.name,
           userId,
-          cause: err.cause?.message || null
-        });
-        return errorResponse(`Failed to generate report: ${err.message || 'Unknown error'}`, 500, request);
+          duration: `${duration}ms`,
+          cause: err.cause?.message || null,
+          code: err.code || null,
+          details: err.details || null,
+          hint: err.hint || null
+        };
+        
+        console.error('[POST /api/users/:userId/report/generate] Error:', JSON.stringify(errorDetails, null, 2));
+        
+        // 在開發環境中返回更詳細的錯誤信息
+        const isDevelopment = request.headers.get('host')?.includes('localhost') || 
+                             request.headers.get('host')?.includes('.pages.dev');
+        
+        const errorResponseData = isDevelopment ? {
+          error: 'Failed to generate report',
+          message: err.message,
+          details: errorDetails,
+          timestamp: new Date().toISOString()
+        } : {
+          error: 'Failed to generate report',
+          message: err.message || 'Unknown error',
+          timestamp: new Date().toISOString()
+        };
+        
+        return jsonResponse(errorResponseData, 500, request);
       }
     }
 
