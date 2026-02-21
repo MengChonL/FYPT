@@ -644,6 +644,17 @@ export const generateFinalReport = async (userId, env) => {
   }
 };
 
+export const deleteUserAttempts = async (userId, env) => {
+  const { supabaseAdmin } = getSupabase(env);
+  const { error, count } = await supabaseAdmin
+    .from('user_attempts')
+    .delete({ count: 'exact' })
+    .eq('user_id', userId);
+  if (error) throw error;
+  console.log(`[deleteUserAttempts] Deleted ${count ?? 'unknown'} attempts for user ${userId}`);
+  return { success: true, deleted_count: count };
+};
+
 export const deleteUserAndData = async (userId, env) => {
   const { supabaseAdmin } = getSupabase(env);
   const { error } = await supabaseAdmin.from('users').delete().eq('user_id', userId);

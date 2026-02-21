@@ -652,6 +652,15 @@ export async function onRequest(context) {
           throw new Error(`JSON serialization failed: ${serializeErr.message}`);
         }
 
+        // 報告生成成功後，清除用戶的 attempts 紀錄以防堆積
+        try {
+          const deleteResult = await supabase.deleteUserAttempts(userId, envVars);
+          console.log('[report/generate] Cleaned up user attempts:', deleteResult);
+        } catch (cleanupErr) {
+          // 清理失敗不影響報告回傳
+          console.warn('[report/generate] Failed to cleanup attempts (non-blocking):', cleanupErr.message);
+        }
+
         const duration = Date.now() - startTime;
         console.log(`[report/generate] Report generation completed successfully in ${duration}ms`);
         return jsonResponse(responseData, 200, request);
