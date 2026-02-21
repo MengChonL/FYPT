@@ -97,7 +97,6 @@ CREATE TABLE user_final_reports (
     error_distribution JSONB,
     skill_grading JSONB,
     is_top_performer BOOLEAN DEFAULT FALSE,
-    frustration_index DECIMAL(5,2),
     generated_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

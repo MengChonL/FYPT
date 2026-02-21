@@ -91,7 +91,6 @@ erDiagram
         JSONB error_distribution
         JSONB skill_grading
         BOOLEAN is_top_performer
-        DECIMAL frustration_index
         TIMESTAMP generated_at
         TIMESTAMP updated_at
     }

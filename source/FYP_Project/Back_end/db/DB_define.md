@@ -127,7 +127,6 @@
     "consistency": { "score": 70, "level": "good" }
   }
   ```
-* `frustration_index` (DECIMAL): 挫折感指數（根據重複失敗次數計算）。
 * `generated_at` (TIMESTAMP): 報告生成時間。
 * `updated_at` (TIMESTAMP): 報告更新時間。
 
