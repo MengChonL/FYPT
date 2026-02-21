@@ -10,11 +10,38 @@ const API_BASE = (import.meta.env.VITE_API_URL || '').trim() || '/api';
 async function fetchAPI(endpoint) {
   try {
     const response = await fetch(`${API_BASE}${endpoint}`);
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+    
+    // 嘗試讀取響應體（無論成功或失敗）
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (parseErr) {
+      responseData = { error: `HTTP ${response.status}: ${response.statusText}` };
     }
-    return await response.json();
+    
+    if (!response.ok) {
+      const errorMessage = responseData.error || responseData.message || `API Error: ${response.status}`;
+      const error = new Error(errorMessage);
+      
+      if (import.meta.env.DEV && responseData.details) {
+        error.details = responseData.details;
+        error.fullResponse = responseData;
+      }
+      
+      console.error(`[API Error] ${endpoint}:`, {
+        status: response.status,
+        message: errorMessage,
+        response: responseData
+      });
+      
+      throw error;
+    }
+    
+    return responseData;
   } catch (error) {
+    if (error.message && (error.message.includes('API Error') || error.message.includes('HTTP'))) {
+      throw error;
+    }
     console.error(`Failed to fetch ${endpoint}:`, error);
     throw error;
   }
@@ -29,12 +56,50 @@ async function postAPI(endpoint, data) {
       },
       body: JSON.stringify(data)
     });
-    if (!response.ok) {
-      throw new Error(`API Error: ${response.status}`);
+    
+    // 嘗試讀取響應體（無論成功或失敗）
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (parseErr) {
+      // 如果無法解析 JSON，使用默認錯誤
+      responseData = { error: `HTTP ${response.status}: ${response.statusText}` };
     }
-    return await response.json();
+    
+    if (!response.ok) {
+      // 構建詳細的錯誤信息
+      const errorMessage = responseData.error || responseData.message || `API Error: ${response.status}`;
+      const error = new Error(errorMessage);
+      
+      // 在開發環境中，附加詳細信息
+      if (import.meta.env.DEV && responseData.details) {
+        error.details = responseData.details;
+        error.fullResponse = responseData;
+        console.error(`[API Error] ${endpoint}:`, {
+          status: response.status,
+          message: errorMessage,
+          details: responseData.details,
+          fullResponse: responseData
+        });
+      } else {
+        console.error(`[API Error] ${endpoint}:`, {
+          status: response.status,
+          message: errorMessage,
+          response: responseData
+        });
+      }
+      
+      throw error;
+    }
+    
+    return responseData;
   } catch (error) {
-    console.error(`Failed to post ${endpoint}:`, error.message);
+    // 如果已經是我們構造的錯誤，直接拋出
+    if (error.message && error.message.includes('API Error') || error.message.includes('HTTP')) {
+      throw error;
+    }
+    // 否則是網絡錯誤或其他錯誤
+    console.error(`Failed to post ${endpoint}:`, error);
     throw error;
   }
 }

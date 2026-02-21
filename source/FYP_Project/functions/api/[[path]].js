@@ -39,9 +39,27 @@ const jsonResponse = (data, status = 200, request) => new Response(JSON.stringif
   headers: { ...getCorsHeaders(request), 'Content-Type': 'application/json; charset=utf-8' },
 });
 
-const errorResponse = (message, status = 500, request) => {
-  const safeMsg = status >= 500 ? 'Internal Server Error' : message;
-  return jsonResponse({ error: safeMsg }, status, request);
+const errorResponse = (message, status = 500, request, details = null) => {
+  // 判斷是否為開發環境（Cloudflare Pages 或 localhost）
+  const isDevelopment = request.headers.get('host')?.includes('localhost') || 
+                       request.headers.get('host')?.includes('.pages.dev') ||
+                       request.headers.get('referer')?.includes('localhost') ||
+                       request.headers.get('referer')?.includes('.pages.dev');
+  
+  const safeMsg = status >= 500 && !isDevelopment ? 'Internal Server Error' : message;
+  
+  const errorData = {
+    error: safeMsg,
+    status,
+    timestamp: new Date().toISOString()
+  };
+  
+  // 在開發環境中，添加詳細錯誤信息
+  if (isDevelopment && details) {
+    errorData.details = details;
+  }
+  
+  return jsonResponse(errorData, status, request);
 };
 
 const parseBody = async (request) => {
@@ -653,22 +671,13 @@ export async function onRequest(context) {
         
         console.error('[POST /api/users/:userId/report/generate] Error:', JSON.stringify(errorDetails, null, 2));
         
-        // 在開發環境中返回更詳細的錯誤信息
-        const isDevelopment = request.headers.get('host')?.includes('localhost') || 
-                             request.headers.get('host')?.includes('.pages.dev');
-        
-        const errorResponseData = isDevelopment ? {
-          error: 'Failed to generate report',
-          message: err.message,
-          details: errorDetails,
-          timestamp: new Date().toISOString()
-        } : {
-          error: 'Failed to generate report',
-          message: err.message || 'Unknown error',
-          timestamp: new Date().toISOString()
-        };
-        
-        return jsonResponse(errorResponseData, 500, request);
+        // 使用改進的 errorResponse 函數，它會自動判斷是否為開發環境
+        return errorResponse(
+          `Failed to generate report: ${err.message || 'Unknown error'}`,
+          500,
+          request,
+          errorDetails
+        );
       }
     }
 
