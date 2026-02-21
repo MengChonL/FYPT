@@ -382,10 +382,44 @@ export const getUserFinalReport = async (userId, env) => {
 
 export const updateReportAIAnalysis = async (userId, aiAnalysis, env) => {
   const { supabaseAdmin } = getSupabase(env);
-  const { data, error } = await supabaseAdmin.from('user_final_reports').update({ 
-    ai_analysis_result: aiAnalysis, updated_at: getLocalTimestamp() 
-  }).eq('user_id', userId);
-  if (error) throw error;
+  
+  // 確保 aiAnalysis 是有效的 JSON 對象
+  if (!aiAnalysis || typeof aiAnalysis !== 'object') {
+    throw new Error('Invalid AI analysis data: must be an object');
+  }
+  
+  // 檢查數據大小（PostgreSQL JSONB 有大小限制）
+  const jsonSize = JSON.stringify(aiAnalysis).length;
+  if (jsonSize > 1000000) { // 1MB limit
+    console.warn(`[updateReportAIAnalysis] AI analysis data is large: ${jsonSize} bytes`);
+  }
+  
+  const { data, error } = await supabaseAdmin
+    .from('user_final_reports')
+    .update({ 
+      ai_analysis_result: aiAnalysis, 
+      updated_at: getLocalTimestamp() 
+    })
+    .eq('user_id', userId)
+    .select();
+    
+  if (error) {
+    console.error('[updateReportAIAnalysis] Database error:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      userId
+    });
+    throw error;
+  }
+  
+  // 如果沒有更新任何行，可能是報告不存在
+  if (!data || data.length === 0) {
+    console.warn(`[updateReportAIAnalysis] No report found for user ${userId}, update had no effect`);
+    // 不拋出錯誤，因為報告可能正在生成中
+  }
+  
   return data;
 };
 

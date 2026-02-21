@@ -406,8 +406,18 @@ export async function onRequest(context) {
           });
           
           if (aiResult && !aiResult.ai_error) {
-            await supabase.updateReportAIAnalysis(userId, aiResult, envVars);
-            console.log('[report/generate] AI analysis saved to database');
+            // 嘗試保存到數據庫，但失敗不應影響響應
+            try {
+              await supabase.updateReportAIAnalysis(userId, aiResult, envVars);
+              console.log('[report/generate] AI analysis saved to database');
+            } catch (saveErr) {
+              console.warn('[report/generate] Failed to save AI analysis to database (non-blocking):', {
+                message: saveErr.message,
+                code: saveErr.code,
+                details: saveErr.details
+              });
+              // 保存失敗不影響響應，AI 結果仍會包含在響應中
+            }
           } else if (aiResult?.ai_error) {
             console.warn('[report/generate] AI analysis returned with error:', aiResult.ai_error);
           }
